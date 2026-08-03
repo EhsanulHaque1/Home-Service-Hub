@@ -1,13 +1,30 @@
+import { Routes, Route } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
 import Homepage from '@/components/Homepage';
 import Footer from '@/components/Footer';
+import SignIn from '@/pages/SignIn';
+import Register from '@/pages/Register';
+import ReportWorker from '@/pages/ReportWorker';
+
+function HomeLayout() {
+  return (
+    <>
+      <Navbar />
+      <Homepage />
+      <Footer />
+    </>
+  );
+}
 
 export default function App() {
   return (
     <div className="min-h-screen bg-ink-950 text-slate-200">
-      <Navbar />
-      <Homepage />
-      <Footer />
+      <Routes>
+        <Route path="/" element={<HomeLayout />} />
+        <Route path="/sign-in" element={<SignIn />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/report-worker" element={<ReportWorker />} />
+      </Routes>
     </div>
   );
 }
