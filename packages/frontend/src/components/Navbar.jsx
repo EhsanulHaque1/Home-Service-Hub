@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Wrench, Menu, X } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Wrench, Menu, X, ShieldAlert } from 'lucide-react';
 
 const links = [
   { label: 'How it works', href: '#how' },
@@ -26,14 +27,14 @@ export default function Navbar() {
       }`}
     >
       <nav className="container-x flex h-16 items-center justify-between">
-        <a href="#top" className="flex items-center gap-2.5">
+        <Link to="/" className="flex items-center gap-2.5">
           <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand-500 text-ink-950 shadow-glow">
             <Wrench className="h-5 w-5" strokeWidth={2.5} />
           </span>
           <span className="font-display text-lg font-700 tracking-tight text-white">
             Home<span className="text-brand-400">Service</span>Hub
           </span>
-        </a>
+        </Link>
 
         <div className="hidden items-center gap-1 md:flex">
           {links.map((l) => (
@@ -48,12 +49,19 @@ export default function Navbar() {
         </div>
 
         <div className="hidden items-center gap-3 md:flex">
-          <a href="#cta" className="text-sm font-medium text-slate-300 transition-colors hover:text-white">
+          <Link
+            to="/report-worker"
+            className="flex items-center gap-1.5 text-sm font-medium text-slate-300 transition-colors hover:text-white"
+          >
+            <ShieldAlert className="h-4 w-4" />
+            Report an issue
+          </Link>
+          <Link to="/sign-in" className="text-sm font-medium text-slate-300 transition-colors hover:text-white">
             Sign in
-          </a>
-          <a href="#cta" className="btn-primary">
+          </Link>
+          <Link to="/register" className="btn-primary">
             Get started
-          </a>
+          </Link>
         </div>
 
         <button
@@ -78,9 +86,20 @@ export default function Navbar() {
                 {l.label}
               </a>
             ))}
-            <a href="#cta" onClick={() => setOpen(false)} className="btn-primary mt-2">
+            <Link
+              to="/report-worker"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-200 hover:bg-white/5"
+            >
+              <ShieldAlert className="h-4 w-4" />
+              Report an issue
+            </Link>
+            <Link to="/sign-in" onClick={() => setOpen(false)} className="rounded-lg px-3 py-2.5 text-sm font-medium text-slate-200 hover:bg-white/5">
+              Sign in
+            </Link>
+            <Link to="/register" onClick={() => setOpen(false)} className="btn-primary mt-2">
               Get started
-            </a>
+            </Link>
           </div>
         </div>
       )}

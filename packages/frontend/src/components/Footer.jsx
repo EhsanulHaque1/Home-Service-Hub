@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { Wrench, Globe, Heart, Users, Share2 } from 'lucide-react';
 
 const cols = [
@@ -46,13 +47,24 @@ export default function Footer() {
               <div key={c.title}>
                 <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500">{c.title}</h4>
                 <ul className="mt-4 space-y-2.5">
-                  {c.links.map((l) => (
-                    <li key={l}>
-                      <a href="#top" className="text-sm text-slate-300 transition-colors hover:text-brand-300">
-                        {l}
-                      </a>
-                    </li>
-                  ))}
+                  {c.links.map((l) =>
+                    l === 'Safety' ? (
+                      <li key={l}>
+                        <Link
+                          to="/report-worker"
+                          className="text-sm text-slate-300 transition-colors hover:text-brand-300"
+                        >
+                          {l}
+                        </Link>
+                      </li>
+                    ) : (
+                      <li key={l}>
+                        <a href="#top" className="text-sm text-slate-300 transition-colors hover:text-brand-300">
+                          {l}
+                        </a>
+                      </li>
+                    )
+                  )}
                 </ul>
               </div>
             ))}
