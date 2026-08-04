@@ -1,20 +1,23 @@
 import { useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock, Eye, EyeOff, Check, Loader2, Wrench } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, Check, Loader2, Wrench, AlertCircle } from 'lucide-react';
 import { useCardTilt } from '@/hooks/useCardTilt';
 import { useEyeTracking } from '@/hooks/useEyeTracking';
 import { createRipple } from '@/lib/ripple';
+import { useAuth } from '@/context/AuthContext';
 import './SignIn.css';
 
 export default function SignIn() {
   const navigate = useNavigate();
   const cardRef = useCardTilt();
   const submitBtnRef = useRef(null);
+  const { login } = useAuth();
 
   const [form, setForm] = useState({ email: '', password: '', remember: false });
   const [showPassword, setShowPassword] = useState(false);
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
   const [errors, setErrors] = useState({});
+  const [serverError, setServerError] = useState('');
   const [status, setStatus] = useState('idle');
 
   const update = (key) => (e) =>
@@ -35,14 +38,27 @@ export default function SignIn() {
 
   const handleRipple = (e) => createRipple(e, submitBtnRef.current);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
     setStatus('loading');
-    setTimeout(() => {
+    setServerError('');
+    try {
+      await login({ email: form.email, password: form.password, remember: form.remember });
       setStatus('success');
-      setTimeout(() => navigate('/'), 1800);
-    }, 900);
+      setTimeout(() => navigate('/'), 1200);
+    } catch (err) {
+      setStatus('idle');
+      if (err.errors) {
+        const formattedErrors = {};
+        Object.keys(err.errors).forEach((key) => {
+          formattedErrors[key] = Array.isArray(err.errors[key]) ? err.errors[key][0] : err.errors[key];
+        });
+        setErrors(formattedErrors);
+      } else {
+        setServerError(err.message || 'Failed to sign in. Please try again.');
+      }
+    }
   };
 
   return (
@@ -85,6 +101,13 @@ export default function SignIn() {
           </div>
 
           <h2>Account Login</h2>
+
+          {serverError && (
+            <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-400">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              <span>{serverError}</span>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} noValidate>
             <div className={`input-group${errors.email ? ' has-error' : ''}`}>
