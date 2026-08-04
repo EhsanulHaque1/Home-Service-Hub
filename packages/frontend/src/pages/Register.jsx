@@ -1,9 +1,10 @@
 import { useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { User, Wrench, Mail, Lock, Phone, Eye, EyeOff, Check, ArrowRight, Loader2, MapPin } from 'lucide-react';
+import { User, Wrench, Mail, Lock, Phone, Eye, EyeOff, Check, ArrowRight, Loader2, MapPin, AlertCircle } from 'lucide-react';
 import AuthLayout from '@/components/AuthLayout';
 import { useEyeTracking } from '@/hooks/useEyeTracking';
 import { createRipple } from '@/lib/ripple';
+import { useAuth } from '@/context/AuthContext';
 
 const trades = ['Plumbing', 'Cleaning', 'Electrical', 'Carpentry', 'Painting', 'Appliance repair'];
 
@@ -22,6 +23,7 @@ const roleCopy = {
 
 export default function Register() {
   const navigate = useNavigate();
+  const { register } = useAuth();
   const [role, setRole] = useState('client');
   const [form, setForm] = useState({
     name: '',
@@ -37,6 +39,7 @@ export default function Register() {
   const [passwordFocus, setPasswordFocus] = useState(false);
   const [confirmFocus, setConfirmFocus] = useState(false);
   const [errors, setErrors] = useState({});
+  const [serverError, setServerError] = useState('');
   const [status, setStatus] = useState('idle');
 
   const avatarRef = useRef(null);
@@ -51,6 +54,7 @@ export default function Register() {
   const switchRole = (r) => {
     setRole(r);
     setErrors({});
+    setServerError('');
   };
 
   const validate = () => {
@@ -68,14 +72,35 @@ export default function Register() {
     return Object.keys(next).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
     setStatus('loading');
-    setTimeout(() => {
+    setServerError('');
+    try {
+      await register({
+        name: form.name,
+        email: form.email,
+        phone: form.phone,
+        password: form.password,
+        role,
+        location: form.location,
+        trade: form.trade,
+      });
       setStatus('success');
-      setTimeout(() => navigate('/'), 1800);
-    }, 900);
+      setTimeout(() => navigate('/'), 1200);
+    } catch (err) {
+      setStatus('idle');
+      if (err.errors) {
+        const formattedErrors = {};
+        Object.keys(err.errors).forEach((key) => {
+          formattedErrors[key] = Array.isArray(err.errors[key]) ? err.errors[key][0] : err.errors[key];
+        });
+        setErrors(formattedErrors);
+      } else {
+        setServerError(err.message || 'Failed to create account. Please try again.');
+      }
+    }
   };
 
   const copy = roleCopy[role];
@@ -130,6 +155,13 @@ export default function Register() {
           </button>
         ))}
       </div>
+
+      {serverError && (
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-400">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <span>{serverError}</span>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} noValidate>
         <div className={`input-group${errors.name ? ' has-error' : ''}`}>
