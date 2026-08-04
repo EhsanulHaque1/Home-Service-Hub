@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Wrench,
   Sparkles,
@@ -249,9 +250,9 @@ function Services() {
 
         <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {categories.map((c, i) => (
-            <a
+            <Link
               key={c.id}
-              href="#cta"
+              to={`/tasks?category=${encodeURIComponent(c.name)}`}
               className={`card group relative overflow-hidden p-6 hover:-translate-y-1 hover:border-brand-400/40 hover:shadow-card ${
                 i === 0 ? 'lg:row-span-1' : ''
               }`}
@@ -270,7 +271,7 @@ function Services() {
               <div className="relative mt-5 flex items-center gap-1.5 text-sm font-semibold text-brand-300 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
                 Browse tasks <ArrowRight className="h-4 w-4" />
               </div>
-            </a>
+            </Link>
           ))}
         </div>
       </div>
@@ -357,9 +358,9 @@ function LiveTasks() {
               Real tasks, waiting to be claimed right now.
             </h2>
           </div>
-          <a href="#cta" className="btn-ghost">
+          <Link to="/tasks" className="btn-ghost">
             View all tasks <ArrowUpRight className="h-4 w-4" />
-          </a>
+          </Link>
         </div>
 
         <div className="mt-12 overflow-hidden rounded-2xl border border-white/10 bg-ink-850/60 backdrop-blur">
@@ -421,15 +422,20 @@ function Workers() {
   return (
     <section id="workers" className="py-20 sm:py-28">
       <div className="container-x">
-        <div className="max-w-2xl">
-          <span className="section-eyebrow">Top workers</span>
-          <h2 className="mt-5 font-display text-3xl font-700 tracking-tight text-white sm:text-4xl">
-            Rated by neighbors. Vetted by us.
-          </h2>
-          <p className="mt-4 text-slate-300">
-            Every worker is background-checked and rated on every job. These are the pros your neighbors keep calling
-            back.
-          </p>
+        <div className="flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-end">
+          <div className="max-w-2xl">
+            <span className="section-eyebrow">Top workers</span>
+            <h2 className="mt-5 font-display text-3xl font-700 tracking-tight text-white sm:text-4xl">
+              Rated by neighbors. Vetted by us.
+            </h2>
+            <p className="mt-4 text-slate-300">
+              Every worker is background-checked and rated on every job. These are the pros your neighbors keep
+              calling back.
+            </p>
+          </div>
+          <Link to="/workers" className="btn-ghost shrink-0">
+            View all workers <ArrowUpRight className="h-4 w-4" />
+          </Link>
         </div>
 
         <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
@@ -458,11 +464,12 @@ function Workers() {
                   <span className="text-sm font-semibold text-brand-300">{w.rate}</span>
                 </div>
 
-                <button className="mt-5 w-full rounded-full border border-white/10 bg-white/5 py-2.5 text-sm font-semibold text-white transition-colors group-hover:border-brand-400/50 group-hover:bg-brand-500 group-hover:text-ink-950">
-                  <span className="inline-flex items-center gap-1.5">
-                    View profile <ArrowRight className="h-4 w-4" />
-                  </span>
-                </button>
+                <Link
+                  to="/workers"
+                  className="mt-5 flex w-full items-center justify-center gap-1.5 rounded-full border border-white/10 bg-white/5 py-2.5 text-sm font-semibold text-white transition-colors group-hover:border-brand-400/50 group-hover:bg-brand-500 group-hover:text-ink-950"
+                >
+                  View profile <ArrowRight className="h-4 w-4" />
+                </Link>
               </div>
             );
           })}

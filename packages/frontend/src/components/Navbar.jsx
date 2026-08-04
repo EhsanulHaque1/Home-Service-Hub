@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Wrench, Menu, X, ShieldAlert } from 'lucide-react';
+import { Wrench, Menu, X, ShieldAlert, LayoutDashboard } from 'lucide-react';
 
 const links = [
   { label: 'How it works', href: '#how' },
   { label: 'Services', href: '#services' },
-  { label: 'Live tasks', href: '#tasks' },
-  { label: 'Top workers', href: '#workers' },
+  { label: 'Browse tasks', to: '/tasks' },
+  { label: 'Top workers', to: '/workers' },
 ];
 
 export default function Navbar() {
@@ -37,18 +37,35 @@ export default function Navbar() {
         </Link>
 
         <div className="hidden items-center gap-1 md:flex">
-          {links.map((l) => (
-            <a
-              key={l.href}
-              href={l.href}
-              className="rounded-full px-4 py-2 text-sm font-medium text-slate-300 transition-colors hover:text-white"
-            >
-              {l.label}
-            </a>
-          ))}
+          {links.map((l) =>
+            l.to ? (
+              <Link
+                key={l.to}
+                to={l.to}
+                className="rounded-full px-4 py-2 text-sm font-medium text-slate-300 transition-colors hover:text-white"
+              >
+                {l.label}
+              </Link>
+            ) : (
+              <a
+                key={l.href}
+                href={l.href}
+                className="rounded-full px-4 py-2 text-sm font-medium text-slate-300 transition-colors hover:text-white"
+              >
+                {l.label}
+              </a>
+            )
+          )}
         </div>
 
         <div className="hidden items-center gap-3 md:flex">
+          <Link
+            to="/dashboard"
+            className="flex items-center gap-1.5 text-sm font-medium text-slate-300 transition-colors hover:text-white"
+          >
+            <LayoutDashboard className="h-4 w-4" />
+            Dashboard
+          </Link>
           <Link
             to="/report-worker"
             className="flex items-center gap-1.5 text-sm font-medium text-slate-300 transition-colors hover:text-white"
@@ -76,16 +93,35 @@ export default function Navbar() {
       {open && (
         <div className="border-t border-white/10 bg-ink-950/95 px-5 py-4 md:hidden">
           <div className="flex flex-col gap-1">
-            {links.map((l) => (
-              <a
-                key={l.href}
-                href={l.href}
-                onClick={() => setOpen(false)}
-                className="rounded-lg px-3 py-2.5 text-sm font-medium text-slate-200 hover:bg-white/5"
-              >
-                {l.label}
-              </a>
-            ))}
+            {links.map((l) =>
+              l.to ? (
+                <Link
+                  key={l.to}
+                  to={l.to}
+                  onClick={() => setOpen(false)}
+                  className="rounded-lg px-3 py-2.5 text-sm font-medium text-slate-200 hover:bg-white/5"
+                >
+                  {l.label}
+                </Link>
+              ) : (
+                <a
+                  key={l.href}
+                  href={l.href}
+                  onClick={() => setOpen(false)}
+                  className="rounded-lg px-3 py-2.5 text-sm font-medium text-slate-200 hover:bg-white/5"
+                >
+                  {l.label}
+                </a>
+              )
+            )}
+            <Link
+              to="/dashboard"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-200 hover:bg-white/5"
+            >
+              <LayoutDashboard className="h-4 w-4" />
+              Dashboard
+            </Link>
             <Link
               to="/report-worker"
               onClick={() => setOpen(false)}

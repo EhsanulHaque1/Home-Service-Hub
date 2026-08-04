@@ -5,6 +5,9 @@ import Footer from '@/components/Footer';
 import SignIn from '@/pages/SignIn';
 import Register from '@/pages/Register';
 import ReportWorker from '@/pages/ReportWorker';
+import BrowseTasks from '@/pages/BrowseTasks';
+import Workers from '@/pages/Workers';
+import Dashboard from '@/pages/Dashboard';
 
 function HomeLayout() {
   return (
@@ -24,6 +27,9 @@ export default function App() {
         <Route path="/sign-in" element={<SignIn />} />
         <Route path="/register" element={<Register />} />
         <Route path="/report-worker" element={<ReportWorker />} />
+        <Route path="/tasks" element={<BrowseTasks />} />
+        <Route path="/workers" element={<Workers />} />
+        <Route path="/dashboard" element={<Dashboard />} />
       </Routes>
     </div>
   );
