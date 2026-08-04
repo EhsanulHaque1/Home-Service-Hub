@@ -22,6 +22,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<HomeLayout />} />
         <Route path="/sign-in" element={<SignIn />} />
+        <Route path="/signin" element={<SignIn />} />
         <Route path="/register" element={<Register />} />
         <Route path="/report-worker" element={<ReportWorker />} />
       </Routes>
