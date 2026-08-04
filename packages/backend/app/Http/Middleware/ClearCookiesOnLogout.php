@@ -4,44 +4,64 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\HttpFoundation\Response;
 
 class ClearCookiesOnLogout
 {
     /**
-     * Manage auth cookies:
-     * - Only successful login (200) and registration (201) will receive session cookies.
-     * - Failed login attempts (422/401/error) receive NO cookies (cookies are expired/cleared).
-     * - Signing out expires and clears all cookies so they vanish from the browser.
+     * Enforce strict cookie rule:
+     * Unless a user is BOTH authenticated AND email-verified, ALL session and CSRF cookies
+     * are forcibly expired and removed from every HTTP response so the browser holds 0 cookies.
      */
     public function handle(Request $request, Closure $next): Response
     {
         $response = $next($request);
 
-        $path = trim($request->path(), '/');
-        $isLogout = str_ends_with($path, 'logout');
-        $isAuthPath = $isLogout
-            || str_ends_with($path, 'login')
-            || str_ends_with($path, 'register');
+        // Check if current user is logged in AND email-verified
+        $isVerifiedAndAuthenticated = Auth::check() && Auth::user()?->hasVerifiedEmail();
 
-        $isFailedAuth = ($isAuthPath && !$isLogout && $response->getStatusCode() >= 400);
-
-        if ($isLogout || $isFailedAuth) {
+        if (!$isVerifiedAndAuthenticated) {
             $cookiePath = config('session.path', '/');
-            $cookieDomain = config('session.domain');
+            $configuredDomain = config('session.domain');
 
-            $cookiesToClear = array_unique([
+            $cookiesToClear = array_filter(array_unique([
                 config('session.cookie'),
                 'homeservicehub_session',
                 'homeservicehub-session',
                 'laravel_session',
                 'auth_token',
                 'XSRF-TOKEN',
-            ]);
+            ]));
+
+            // 1. Strip any active Set-Cookie headers added by StartSession or Sanctum middleware
+            foreach ($response->headers->getCookies() as $c) {
+                if (in_array($c->getName(), $cookiesToClear, true)) {
+                    $response->headers->removeCookie($c->getName(), $c->getPath(), $c->getDomain());
+                }
+            }
+
+            // 2. Attach explicit expired cookies matching all combinations of httpOnly/domain so browser deletes them
+            $domainsToClear = array_unique([$configuredDomain, null, 'localhost', '.localhost', '127.0.0.1']);
 
             foreach ($cookiesToClear as $cookieName) {
-                if ($cookieName) {
-                    $response->headers->setCookie(cookie()->forget($cookieName, $cookiePath, $cookieDomain));
+                foreach ($domainsToClear as $domain) {
+                    foreach ([true, false] as $httpOnly) {
+                        $response->headers->setCookie(
+                            new Cookie(
+                                $cookieName,
+                                '',
+                                1,
+                                $cookiePath,
+                                $domain,
+                                false,
+                                $httpOnly,
+                                false,
+                                Cookie::SAMESITE_LAX
+                            )
+                        );
+                    }
                 }
             }
         }

@@ -108,6 +108,15 @@ export function AuthProvider({ children }) {
     } finally {
       setUser(null);
       notifyAuthChange();
+
+      // Wipe any non-httpOnly client cookies on sign out
+      try {
+        document.cookie.split(';').forEach((c) => {
+          document.cookie = c
+            .replace(/^ +/, '')
+            .replace(/=.*/, '=;expires=' + new Date(0).toUTCString() + ';path=/');
+        });
+      } catch (e) {}
     }
   };
 
