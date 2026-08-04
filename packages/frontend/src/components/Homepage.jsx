@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
 import {
   Wrench,
   Sparkles,
@@ -634,14 +635,26 @@ function CTA() {
 }
 
 export default function Homepage() {
+  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [showVerifiedToast, setShowVerifiedToast] = useState(searchParams.get('verified') === '1');
+  const [showVerifiedToast, setShowVerifiedToast] = useState(false);
 
   useEffect(() => {
-    if (searchParams.get('verified') === '1') {
+    // Only display verification toast if user is currently signed in AND verified param exists
+    if (user && searchParams.get('verified') === '1') {
       setShowVerifiedToast(true);
+
+      const timer = setTimeout(() => {
+        setShowVerifiedToast(false);
+        searchParams.delete('verified');
+        setSearchParams(searchParams, { replace: true });
+      }, 4000);
+
+      return () => clearTimeout(timer);
+    } else {
+      setShowVerifiedToast(false);
     }
-  }, [searchParams]);
+  }, [user, searchParams, setSearchParams]);
 
   const dismissToast = () => {
     setShowVerifiedToast(false);

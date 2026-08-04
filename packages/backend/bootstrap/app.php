@@ -13,13 +13,18 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->append(ClearCookiesOnLogout::class);
         $middleware->statefulApi();
+        $middleware->api(append: [
+            ClearCookiesOnLogout::class,
+        ]);
+        $middleware->append(ClearCookiesOnLogout::class);
         $middleware->validateCsrfTokens(except: [
             'api/complaints',
             'api/register',
             'api/login',
             'api/logout',
+            'api/check-email',
+            'api/email/resend',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
