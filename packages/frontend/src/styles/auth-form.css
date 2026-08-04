@@ -1,0 +1,319 @@
+/* Shared interactive styling for the sign-in and registration cards. */
+
+/* Ambient background glows */
+.glow-sphere {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(120px);
+  z-index: 0;
+  opacity: 0.55;
+  animation: auth-float 8s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+.glow-1 {
+  width: 400px;
+  height: 400px;
+  background: var(--color-brand-500, #ff7d11);
+  top: -10%;
+  left: 10%;
+}
+.glow-2 {
+  width: 500px;
+  height: 500px;
+  background: var(--color-teal-500, #14b8a6);
+  bottom: -10%;
+  right: 10%;
+  animation-delay: -4s;
+}
+
+@keyframes auth-float {
+  0% { transform: translateY(0) scale(1); }
+  100% { transform: translateY(40px) scale(1.1); }
+}
+
+/* Interactive avatar with eye tracking */
+.avatar-area {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 28px;
+  position: relative;
+}
+
+.face {
+  width: 80px;
+  height: 80px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid rgba(255, 255, 255, 0.08);
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  transition: all 0.3s ease;
+}
+
+.eye {
+  width: 14px;
+  height: 14px;
+  background: #fff;
+  border-radius: 50%;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: height 0.1s ease;
+}
+
+.pupil {
+  width: 6px;
+  height: 6px;
+  background: var(--color-brand-500, #ff7d11);
+  border-radius: 50%;
+  position: absolute;
+  transition: transform 0.05s linear;
+}
+
+.hide-password .eye {
+  height: 2px;
+  background: #94a3b8;
+}
+.hide-password .pupil {
+  display: none;
+}
+
+/* Floating-label inputs */
+.input-group {
+  position: relative;
+  margin-bottom: 22px;
+}
+
+.input-group .input-icon {
+  position: absolute;
+  left: 15px;
+  top: 22px;
+  color: #94a3b8;
+  transition: color 0.3s ease;
+  pointer-events: none;
+}
+
+.input-group input {
+  width: 100%;
+  padding: 15px 15px 15px 45px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  outline: none;
+  color: #fff;
+  font-size: 15px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.input-group.has-error input {
+  border-color: rgba(248, 113, 113, 0.6);
+}
+
+.input-group label {
+  position: absolute;
+  left: 45px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  pointer-events: none;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.input-group input:focus,
+.input-group input:not(:placeholder-shown) {
+  border-color: var(--color-brand-500, #ff7d11);
+  background: rgba(255, 125, 17, 0.05);
+  box-shadow: 0 0 15px rgba(255, 125, 17, 0.15);
+}
+
+.input-group input:focus ~ label,
+.input-group input:not(:placeholder-shown) ~ label {
+  top: 0;
+  left: 12px;
+  font-size: 12px;
+  color: var(--color-brand-300, #ffbd71);
+  padding: 0 6px;
+  background: #141b26;
+  border-radius: 4px;
+}
+
+.input-group input:focus ~ .input-icon {
+  color: var(--color-brand-300, #ffbd71);
+}
+
+/* Static (non-floating) label variant, for fields like <select> that can't use :placeholder-shown */
+.input-group.static-label label {
+  position: static;
+  display: block;
+  transform: none;
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #94a3b8;
+}
+
+.static-input-wrap {
+  position: relative;
+}
+.static-input-wrap .input-icon {
+  position: absolute;
+  left: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  pointer-events: none;
+}
+.static-input-wrap select {
+  width: 100%;
+  padding: 15px 15px 15px 45px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  outline: none;
+  color: #fff;
+  font-size: 15px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.static-input-wrap select:focus {
+  border-color: var(--color-brand-500, #ff7d11);
+  background: rgba(255, 125, 17, 0.05);
+  box-shadow: 0 0 15px rgba(255, 125, 17, 0.15);
+}
+.input-group.static-label.has-error .static-input-wrap select {
+  border-color: rgba(248, 113, 113, 0.6);
+}
+
+.input-error {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #f87171;
+}
+
+.toggle-password {
+  position: absolute;
+  right: 15px;
+  top: 22px;
+  color: #94a3b8;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  display: flex;
+  align-items: center;
+}
+.toggle-password:hover {
+  color: #fff;
+}
+
+/* Submit button + ripple */
+.submit-btn {
+  width: 100%;
+  padding: 15px;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(90deg, var(--color-brand-500, #ff7d11), var(--color-brand-700, #c74a02));
+  color: #0a0e14;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.3s ease, opacity 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.submit-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(255, 125, 17, 0.35);
+}
+
+.submit-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.submit-btn:disabled {
+  opacity: 0.75;
+  cursor: default;
+}
+
+.ripple {
+  position: absolute;
+  background: rgba(10, 14, 20, 0.35);
+  border-radius: 50%;
+  transform: scale(0);
+  animation: auth-ripple 0.6s linear;
+  pointer-events: none;
+}
+
+@keyframes auth-ripple {
+  to {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+.spin {
+  animation: auth-spin 0.8s linear infinite;
+}
+@keyframes auth-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Success overlay, sized to whatever card it's placed in */
+.success-overlay {
+  position: absolute;
+  inset: 0;
+  background: #0f141c;
+  border-radius: inherit;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.5s ease;
+  z-index: 20;
+  text-align: center;
+  padding: 0 24px;
+}
+
+.success.success-overlay,
+.success .success-overlay {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.success-checkmark {
+  width: 80px;
+  height: 80px;
+  background: #10b981;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: white;
+  transform: scale(0);
+  transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.3s;
+}
+
+.success .success-checkmark {
+  transform: scale(1);
+}
+
+.success-overlay h2 {
+  margin-top: 20px;
+  margin-bottom: 4px;
+  color: #fff;
+}
+
+.success-overlay p {
+  color: #94a3b8;
+}

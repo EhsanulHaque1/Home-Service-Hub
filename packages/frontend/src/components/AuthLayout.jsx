@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Wrench, ShieldCheck, Star, Zap } from 'lucide-react';
+import { useCardTilt } from '@/hooks/useCardTilt';
+import '@/styles/auth-form.css';
 
 const perks = [
   { icon: ShieldCheck, label: 'Background-checked workers' },
@@ -7,12 +9,17 @@ const perks = [
   { icon: Zap, label: 'Direct, instant payment' },
 ];
 
-export default function AuthLayout({ eyebrow, title, subtitle, children, footer }) {
+export default function AuthLayout({ eyebrow, title, subtitle, children, footer, cardClassName = '', overlay }) {
+  const cardRef = useCardTilt();
+
   return (
     <div className="relative flex min-h-screen flex-col">
-      <div className="pointer-events-none absolute inset-0 mesh-bg opacity-40" />
-      <div className="pointer-events-none absolute inset-0 grid-glow" />
-      <div className="pointer-events-none absolute -top-24 left-1/2 h-72 w-[42rem] -translate-x-1/2 rounded-full bg-brand-500/20 blur-[120px]" />
+      <div className="pointer-events-none fixed inset-0 overflow-hidden">
+        <div className="absolute inset-0 mesh-bg opacity-40" />
+        <div className="absolute inset-0 grid-glow" />
+        <div className="glow-sphere glow-1" />
+        <div className="glow-sphere glow-2" />
+      </div>
 
       <header className="container-x relative flex h-16 items-center">
         <Link to="/" className="flex items-center gap-2.5">
@@ -52,8 +59,13 @@ export default function AuthLayout({ eyebrow, title, subtitle, children, footer 
               <h1 className="mt-4 font-display text-2xl font-800 tracking-tight text-white">{title}</h1>
             </div>
 
-            <div className="card relative overflow-hidden p-6 shadow-card sm:p-8">
+            <div
+              ref={cardRef}
+              className={`card relative overflow-hidden p-6 shadow-card sm:p-8 [transform-style:preserve-3d] ${cardClassName}`}
+              style={{ transition: 'transform 0.1s ease, box-shadow 0.3s ease' }}
+            >
               <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-brand-500/10 blur-[80px]" />
+              {overlay}
               <div className="relative">{children}</div>
             </div>
 

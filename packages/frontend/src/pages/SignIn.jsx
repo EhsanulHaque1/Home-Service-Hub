@@ -1,12 +1,19 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock, Eye, EyeOff, ArrowRight, Loader2 } from 'lucide-react';
-import AuthLayout from '@/components/AuthLayout';
+import { Mail, Lock, Eye, EyeOff, Check, Loader2, Wrench } from 'lucide-react';
+import { useCardTilt } from '@/hooks/useCardTilt';
+import { useEyeTracking } from '@/hooks/useEyeTracking';
+import { createRipple } from '@/lib/ripple';
+import './SignIn.css';
 
 export default function SignIn() {
   const navigate = useNavigate();
+  const cardRef = useCardTilt();
+  const submitBtnRef = useRef(null);
+
   const [form, setForm] = useState({ email: '', password: '', remember: false });
   const [showPassword, setShowPassword] = useState(false);
+  const [isPasswordFocused, setIsPasswordFocused] = useState(false);
   const [errors, setErrors] = useState({});
   const [status, setStatus] = useState('idle');
 
@@ -22,112 +29,128 @@ export default function SignIn() {
     return Object.keys(next).length === 0;
   };
 
+  const hidePassword = isPasswordFocused && !showPassword;
+
+  useEyeTracking(cardRef, hidePassword);
+
+  const handleRipple = (e) => createRipple(e, submitBtnRef.current);
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!validate()) return;
     setStatus('loading');
     setTimeout(() => {
       setStatus('success');
-      setTimeout(() => navigate('/'), 900);
+      setTimeout(() => navigate('/'), 1800);
     }, 900);
   };
 
   return (
-    <AuthLayout
-      eyebrow="Welcome back"
-      title="Sign in to keep tasks moving."
-      subtitle="Track live tasks, chat with matches, and manage payments — all from your HomeServiceHub account."
-      footer={
-        <>
-          New here?{' '}
-          <Link to="/register" className="font-semibold text-brand-300 hover:text-brand-200">
-            Create an account
-          </Link>
-        </>
-      }
-    >
-      <form onSubmit={handleSubmit} noValidate className="space-y-5">
-        <div>
-          <label htmlFor="email" className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-            Email
-          </label>
-          <div className="relative mt-2">
-            <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-            <input
-              id="email"
-              type="email"
-              autoComplete="email"
-              value={form.email}
-              onChange={update('email')}
-              placeholder="you@email.com"
-              className={`w-full rounded-xl border bg-ink-900 py-3 pl-11 pr-4 text-sm text-white placeholder:text-slate-500 outline-none transition-colors focus:border-brand-400 ${
-                errors.email ? 'border-red-500/50' : 'border-white/10'
-              }`}
-            />
-          </div>
-          {errors.email && <p className="mt-1.5 text-xs text-red-400">{errors.email}</p>}
-        </div>
+    <div className="signin-page">
+      <div className="pointer-events-none absolute inset-0 mesh-bg opacity-40" />
+      <div className="glow-sphere glow-1" />
+      <div className="glow-sphere glow-2" />
 
-        <div>
-          <div className="flex items-center justify-between">
-            <label htmlFor="password" className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-              Password
-            </label>
-            <a href="#" className="text-xs font-medium text-brand-300 hover:text-brand-200">
-              Forgot password?
-            </a>
+      <Link to="/" className="signin-header flex items-center gap-2.5">
+        <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand-500 text-ink-950 shadow-glow">
+          <Wrench className="h-5 w-5" strokeWidth={2.5} />
+        </span>
+        <span className="font-display text-lg font-700 tracking-tight text-white">
+          Home<span className="text-brand-400">Service</span>Hub
+        </span>
+      </Link>
+
+      <div>
+        <div
+          ref={cardRef}
+          className={`login-container${status === 'success' ? ' success' : ''}${hidePassword ? ' hide-password' : ''}`}
+        >
+          <div className="success-overlay">
+            <div className="success-checkmark">
+              <Check className="h-9 w-9" strokeWidth={3} />
+            </div>
+            <h2>Welcome Back!</h2>
+            <p>Logging you in...</p>
           </div>
-          <div className="relative mt-2">
-            <Lock className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-            <input
-              id="password"
-              type={showPassword ? 'text' : 'password'}
-              autoComplete="current-password"
-              value={form.password}
-              onChange={update('password')}
-              placeholder="••••••••"
-              className={`w-full rounded-xl border bg-ink-900 py-3 pl-11 pr-11 text-sm text-white placeholder:text-slate-500 outline-none transition-colors focus:border-brand-400 ${
-                errors.password ? 'border-red-500/50' : 'border-white/10'
-              }`}
-            />
+
+          <div className="avatar-area">
+            <div className="face">
+              <div className="eye">
+                <div className="pupil" />
+              </div>
+              <div className="eye">
+                <div className="pupil" />
+              </div>
+            </div>
+          </div>
+
+          <h2>Account Login</h2>
+
+          <form onSubmit={handleSubmit} noValidate>
+            <div className={`input-group${errors.email ? ' has-error' : ''}`}>
+              <Mail className="input-icon h-4 w-4" />
+              <input
+                id="email"
+                type="email"
+                placeholder=" "
+                autoComplete="email"
+                value={form.email}
+                onChange={update('email')}
+              />
+              <label htmlFor="email">Email Address</label>
+              {errors.email && <p className="input-error">{errors.email}</p>}
+            </div>
+
+            <div className={`input-group${errors.password ? ' has-error' : ''}`}>
+              <Lock className="input-icon h-4 w-4" />
+              <input
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                placeholder=" "
+                autoComplete="current-password"
+                value={form.password}
+                onChange={update('password')}
+                onFocus={() => setIsPasswordFocused(true)}
+                onBlur={() => setIsPasswordFocused(false)}
+              />
+              <label htmlFor="password">Password</label>
+              <button
+                type="button"
+                className="toggle-password"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+              {errors.password && <p className="input-error">{errors.password}</p>}
+            </div>
+
+            <div className="utils">
+              <label className="remember-me">
+                <input type="checkbox" checked={form.remember} onChange={update('remember')} />
+                Remember me
+              </label>
+              <a href="#" className="forgot-pass" onClick={(e) => e.preventDefault()}>
+                Forgot Password?
+              </a>
+            </div>
+
             <button
-              type="button"
-              onClick={() => setShowPassword((v) => !v)}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
-              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              ref={submitBtnRef}
+              type="submit"
+              className="submit-btn"
+              disabled={status !== 'idle'}
+              onClick={handleRipple}
             >
-              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              {status === 'loading' ? <Loader2 className="h-4 w-4 spin" /> : 'Sign In'}
             </button>
-          </div>
-          {errors.password && <p className="mt-1.5 text-xs text-red-400">{errors.password}</p>}
+          </form>
         </div>
 
-        <label className="flex items-center gap-2.5 text-sm text-slate-300">
-          <input
-            type="checkbox"
-            checked={form.remember}
-            onChange={update('remember')}
-            className="h-4 w-4 rounded border-white/20 bg-ink-900 text-brand-500 accent-brand-500"
-          />
-          Remember me
-        </label>
-
-        {status === 'success' && (
-          <p className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
-            Signed in! Redirecting…
-          </p>
-        )}
-
-        <button type="submit" disabled={status !== 'idle'} className="btn-primary w-full disabled:opacity-70">
-          {status === 'loading' ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <>
-              Sign in <ArrowRight className="h-4 w-4" />
-            </>
-          )}
-        </button>
-      </form>
-    </AuthLayout>
+        <p className="signin-footer">
+          New here? <Link to="/register">Create an account</Link>
+        </p>
+      </div>
+    </div>
   );
 }
