@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { User, Wrench, Mail, Lock, Phone, Eye, EyeOff, ArrowRight, Loader2, MapPin } from 'lucide-react';
+import { User, Wrench, Mail, Lock, Phone, Eye, EyeOff, Check, ArrowRight, Loader2, MapPin } from 'lucide-react';
 import AuthLayout from '@/components/AuthLayout';
+import { useEyeTracking } from '@/hooks/useEyeTracking';
+import { createRipple } from '@/lib/ripple';
 
 const trades = ['Plumbing', 'Cleaning', 'Electrical', 'Carpentry', 'Painting', 'Appliance repair'];
 
@@ -32,8 +34,16 @@ export default function Register() {
     terms: false,
   });
   const [showPassword, setShowPassword] = useState(false);
+  const [passwordFocus, setPasswordFocus] = useState(false);
+  const [confirmFocus, setConfirmFocus] = useState(false);
   const [errors, setErrors] = useState({});
   const [status, setStatus] = useState('idle');
+
+  const avatarRef = useRef(null);
+  const submitBtnRef = useRef(null);
+  const hidePassword = (passwordFocus || confirmFocus) && !showPassword;
+  useEyeTracking(avatarRef, hidePassword);
+  const handleRipple = (e) => createRipple(e, submitBtnRef.current);
 
   const update = (key) => (e) =>
     setForm((f) => ({ ...f, [key]: e.target.type === 'checkbox' ? e.target.checked : e.target.value }));
@@ -64,7 +74,7 @@ export default function Register() {
     setStatus('loading');
     setTimeout(() => {
       setStatus('success');
-      setTimeout(() => navigate('/'), 900);
+      setTimeout(() => navigate('/'), 1800);
     }, 900);
   };
 
@@ -75,6 +85,16 @@ export default function Register() {
       eyebrow={copy.eyebrow}
       title={copy.title}
       subtitle={copy.subtitle}
+      cardClassName={status === 'success' ? 'success' : ''}
+      overlay={
+        <div className="success-overlay">
+          <div className="success-checkmark">
+            <Check className="h-9 w-9" strokeWidth={3} />
+          </div>
+          <h2>Account created!</h2>
+          <p>Redirecting…</p>
+        </div>
+      }
       footer={
         <>
           Already have an account?{' '}
@@ -84,6 +104,17 @@ export default function Register() {
         </>
       }
     >
+      <div ref={avatarRef} className={`avatar-area${hidePassword ? ' hide-password' : ''}`}>
+        <div className="face">
+          <div className="eye">
+            <div className="pupil" />
+          </div>
+          <div className="eye">
+            <div className="pupil" />
+          </div>
+        </div>
+      </div>
+
       <div className="mb-6 inline-flex w-full rounded-full border border-white/10 bg-ink-900 p-1">
         {['client', 'worker'].map((r) => (
           <button
@@ -100,166 +131,110 @@ export default function Register() {
         ))}
       </div>
 
-      <form onSubmit={handleSubmit} noValidate className="space-y-5">
-        <div>
-          <label htmlFor="name" className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-            Full name
-          </label>
-          <div className="relative mt-2">
-            <User className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-            <input
-              id="name"
-              type="text"
-              autoComplete="name"
-              value={form.name}
-              onChange={update('name')}
-              placeholder="Jane Doe"
-              className={`w-full rounded-xl border bg-ink-900 py-3 pl-11 pr-4 text-sm text-white placeholder:text-slate-500 outline-none transition-colors focus:border-brand-400 ${
-                errors.name ? 'border-red-500/50' : 'border-white/10'
-              }`}
-            />
-          </div>
-          {errors.name && <p className="mt-1.5 text-xs text-red-400">{errors.name}</p>}
+      <form onSubmit={handleSubmit} noValidate>
+        <div className={`input-group${errors.name ? ' has-error' : ''}`}>
+          <User className="input-icon h-4 w-4" />
+          <input id="name" type="text" placeholder=" " autoComplete="name" value={form.name} onChange={update('name')} />
+          <label htmlFor="name">Full name</label>
+          {errors.name && <p className="input-error">{errors.name}</p>}
         </div>
 
-        <div className="grid gap-5 sm:grid-cols-2">
-          <div>
-            <label htmlFor="email" className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-              Email
-            </label>
-            <div className="relative mt-2">
-              <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-              <input
-                id="email"
-                type="email"
-                autoComplete="email"
-                value={form.email}
-                onChange={update('email')}
-                placeholder="you@email.com"
-                className={`w-full rounded-xl border bg-ink-900 py-3 pl-11 pr-4 text-sm text-white placeholder:text-slate-500 outline-none transition-colors focus:border-brand-400 ${
-                  errors.email ? 'border-red-500/50' : 'border-white/10'
-                }`}
-              />
-            </div>
-            {errors.email && <p className="mt-1.5 text-xs text-red-400">{errors.email}</p>}
+        <div className="grid gap-x-5 sm:grid-cols-2">
+          <div className={`input-group${errors.email ? ' has-error' : ''}`}>
+            <Mail className="input-icon h-4 w-4" />
+            <input
+              id="email"
+              type="email"
+              placeholder=" "
+              autoComplete="email"
+              value={form.email}
+              onChange={update('email')}
+            />
+            <label htmlFor="email">Email</label>
+            {errors.email && <p className="input-error">{errors.email}</p>}
           </div>
 
-          <div>
-            <label htmlFor="phone" className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-              Phone <span className="normal-case text-slate-500">(optional)</span>
-            </label>
-            <div className="relative mt-2">
-              <Phone className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-              <input
-                id="phone"
-                type="tel"
-                autoComplete="tel"
-                value={form.phone}
-                onChange={update('phone')}
-                placeholder="(555) 000-0000"
-                className="w-full rounded-xl border border-white/10 bg-ink-900 py-3 pl-11 pr-4 text-sm text-white placeholder:text-slate-500 outline-none transition-colors focus:border-brand-400"
-              />
-            </div>
+          <div className="input-group">
+            <Phone className="input-icon h-4 w-4" />
+            <input id="phone" type="tel" placeholder=" " autoComplete="tel" value={form.phone} onChange={update('phone')} />
+            <label htmlFor="phone">Phone (optional)</label>
           </div>
         </div>
 
         {role === 'worker' && (
-          <div>
-            <label htmlFor="trade" className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-              Trade
-            </label>
-            <select
-              id="trade"
-              value={form.trade}
-              onChange={update('trade')}
-              className={`mt-2 w-full rounded-xl border bg-ink-900 px-4 py-3 text-sm text-white outline-none transition-colors focus:border-brand-400 ${
-                errors.trade ? 'border-red-500/50' : 'border-white/10'
-              }`}
-            >
-              <option value="" disabled>
-                Select your trade…
-              </option>
-              {trades.map((t) => (
-                <option key={t}>{t}</option>
-              ))}
-            </select>
-            {errors.trade && <p className="mt-1.5 text-xs text-red-400">{errors.trade}</p>}
+          <div className={`input-group static-label${errors.trade ? ' has-error' : ''}`}>
+            <label htmlFor="trade">Trade</label>
+            <div className="static-input-wrap">
+              <Wrench className="input-icon h-4 w-4" />
+              <select id="trade" value={form.trade} onChange={update('trade')}>
+                <option value="" disabled>
+                  Select your trade…
+                </option>
+                {trades.map((t) => (
+                  <option key={t}>{t}</option>
+                ))}
+              </select>
+            </div>
+            {errors.trade && <p className="input-error">{errors.trade}</p>}
           </div>
         )}
 
-        <div>
-          <label htmlFor="location" className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-            {role === 'worker' ? 'Service area' : 'Address'}
-          </label>
-          <div className="relative mt-2">
-            <MapPin className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+        <div className={`input-group${errors.location ? ' has-error' : ''}`}>
+          <MapPin className="input-icon h-4 w-4" />
+          <input
+            id="location"
+            type="text"
+            placeholder=" "
+            value={form.location}
+            onChange={update('location')}
+          />
+          <label htmlFor="location">{role === 'worker' ? 'Service area' : 'Address'}</label>
+          {errors.location && <p className="input-error">{errors.location}</p>}
+        </div>
+
+        <div className="grid gap-x-5 sm:grid-cols-2">
+          <div className={`input-group${errors.password ? ' has-error' : ''}`}>
+            <Lock className="input-icon h-4 w-4" />
             <input
-              id="location"
-              type="text"
-              value={form.location}
-              onChange={update('location')}
-              placeholder={role === 'worker' ? 'Neighborhoods you cover' : 'Street, city'}
-              className={`w-full rounded-xl border bg-ink-900 py-3 pl-11 pr-4 text-sm text-white placeholder:text-slate-500 outline-none transition-colors focus:border-brand-400 ${
-                errors.location ? 'border-red-500/50' : 'border-white/10'
-              }`}
+              id="password"
+              type={showPassword ? 'text' : 'password'}
+              placeholder=" "
+              autoComplete="new-password"
+              value={form.password}
+              onChange={update('password')}
+              onFocus={() => setPasswordFocus(true)}
+              onBlur={() => setPasswordFocus(false)}
             />
-          </div>
-          {errors.location && <p className="mt-1.5 text-xs text-red-400">{errors.location}</p>}
-        </div>
-
-        <div className="grid gap-5 sm:grid-cols-2">
-          <div>
-            <label htmlFor="password" className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-              Password
-            </label>
-            <div className="relative mt-2">
-              <Lock className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-              <input
-                id="password"
-                type={showPassword ? 'text' : 'password'}
-                autoComplete="new-password"
-                value={form.password}
-                onChange={update('password')}
-                placeholder="••••••••"
-                className={`w-full rounded-xl border bg-ink-900 py-3 pl-11 pr-11 text-sm text-white placeholder:text-slate-500 outline-none transition-colors focus:border-brand-400 ${
-                  errors.password ? 'border-red-500/50' : 'border-white/10'
-                }`}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword((v) => !v)}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
-              >
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-            </div>
-            {errors.password && <p className="mt-1.5 text-xs text-red-400">{errors.password}</p>}
+            <label htmlFor="password">Password</label>
+            <button
+              type="button"
+              className="toggle-password"
+              onClick={() => setShowPassword((v) => !v)}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+            >
+              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+            {errors.password && <p className="input-error">{errors.password}</p>}
           </div>
 
-          <div>
-            <label htmlFor="confirmPassword" className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-              Confirm password
-            </label>
-            <div className="relative mt-2">
-              <Lock className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-              <input
-                id="confirmPassword"
-                type={showPassword ? 'text' : 'password'}
-                autoComplete="new-password"
-                value={form.confirmPassword}
-                onChange={update('confirmPassword')}
-                placeholder="••••••••"
-                className={`w-full rounded-xl border bg-ink-900 py-3 pl-11 pr-4 text-sm text-white placeholder:text-slate-500 outline-none transition-colors focus:border-brand-400 ${
-                  errors.confirmPassword ? 'border-red-500/50' : 'border-white/10'
-                }`}
-              />
-            </div>
-            {errors.confirmPassword && <p className="mt-1.5 text-xs text-red-400">{errors.confirmPassword}</p>}
+          <div className={`input-group${errors.confirmPassword ? ' has-error' : ''}`}>
+            <Lock className="input-icon h-4 w-4" />
+            <input
+              id="confirmPassword"
+              type={showPassword ? 'text' : 'password'}
+              placeholder=" "
+              autoComplete="new-password"
+              value={form.confirmPassword}
+              onChange={update('confirmPassword')}
+              onFocus={() => setConfirmFocus(true)}
+              onBlur={() => setConfirmFocus(false)}
+            />
+            <label htmlFor="confirmPassword">Confirm password</label>
+            {errors.confirmPassword && <p className="input-error">{errors.confirmPassword}</p>}
           </div>
         </div>
 
-        <div>
+        <div className="mb-5">
           <label className="flex items-start gap-2.5 text-sm text-slate-300">
             <input
               type="checkbox"
@@ -270,18 +245,18 @@ export default function Register() {
             I agree to the <span className="text-brand-300">Terms</span> and{' '}
             <span className="text-brand-300">Privacy Policy</span>.
           </label>
-          {errors.terms && <p className="mt-1.5 text-xs text-red-400">{errors.terms}</p>}
+          {errors.terms && <p className="input-error">{errors.terms}</p>}
         </div>
 
-        {status === 'success' && (
-          <p className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
-            Account created! Redirecting…
-          </p>
-        )}
-
-        <button type="submit" disabled={status !== 'idle'} className="btn-primary w-full disabled:opacity-70">
+        <button
+          ref={submitBtnRef}
+          type="submit"
+          className="submit-btn"
+          disabled={status !== 'idle'}
+          onClick={handleRipple}
+        >
           {status === 'loading' ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
+            <Loader2 className="h-4 w-4 spin" />
           ) : (
             <>
               Create {role} account <ArrowRight className="h-4 w-4" />
