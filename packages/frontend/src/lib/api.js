@@ -54,3 +54,11 @@ export function logoutUser() {
 export function fetchCurrentUser() {
   return apiGet('/me');
 }
+
+export function resendVerificationEmail(email) {
+  return apiPost('/email/resend', { email });
+}
+
+export function checkEmailStatus(email) {
+  return apiPost('/check-email', { email });
+}

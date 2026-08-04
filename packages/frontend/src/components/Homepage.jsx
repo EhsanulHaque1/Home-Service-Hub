@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Wrench,
   Sparkles,
@@ -14,6 +15,8 @@ import {
   BadgeCheck,
   Quote,
   Check,
+  CheckCircle2,
+  X,
 } from 'lucide-react';
 
 const categories = [
@@ -631,8 +634,38 @@ function CTA() {
 }
 
 export default function Homepage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [showVerifiedToast, setShowVerifiedToast] = useState(searchParams.get('verified') === '1');
+
+  useEffect(() => {
+    if (searchParams.get('verified') === '1') {
+      setShowVerifiedToast(true);
+    }
+  }, [searchParams]);
+
+  const dismissToast = () => {
+    setShowVerifiedToast(false);
+    searchParams.delete('verified');
+    setSearchParams(searchParams, { replace: true });
+  };
+
   return (
-    <main>
+    <main className="relative">
+      {showVerifiedToast && (
+        <div className="fixed top-20 right-6 z-50 flex items-center gap-3 rounded-2xl border border-emerald-500/30 bg-ink-900/95 p-4 text-emerald-400 shadow-2xl backdrop-blur-md transition-all">
+          <CheckCircle2 className="h-6 w-6 shrink-0 text-emerald-400" />
+          <div>
+            <p className="text-sm font-bold text-white">Email Verified Successfully!</p>
+            <p className="text-xs text-slate-400">Welcome to Home Service Hub. You are now logged in.</p>
+          </div>
+          <button
+            onClick={dismissToast}
+            className="ml-2 rounded-lg p-1 text-slate-400 hover:bg-white/10 hover:text-white"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
       <Hero />
       <Stats />
       <Services />
