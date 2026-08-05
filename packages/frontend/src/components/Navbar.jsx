@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Wrench, Menu, X, ShieldAlert, LayoutDashboard } from 'lucide-react';
+import { Wrench, Menu, X, ShieldAlert, LayoutDashboard, LogOut, User as UserIcon, Send, ClipboardPlus } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 
 const links = [
   { label: 'How it works', href: '#how' },
@@ -9,9 +10,26 @@ const links = [
   { label: 'Top workers', to: '/workers' },
 ];
 
+// Role-based primary call to action shown once a user is signed in:
+// workers are steered toward finding work, clients toward posting it.
+const roleActions = {
+  worker: { to: '/tasks', label: 'Browse tasks', icon: Send },
+  client: { to: '/tasks?post=1', label: 'Post a task', icon: ClipboardPlus },
+};
+
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
+  const { user, logout } = useAuth();
+  const roleAction = user ? roleActions[user.role] : null;
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } finally {
+      window.history.replaceState({}, '', '/');
+    }
+  };
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24);
@@ -73,12 +91,47 @@ export default function Navbar() {
             <ShieldAlert className="h-4 w-4" />
             Report an issue
           </Link>
-          <Link to="/sign-in" className="text-sm font-medium text-slate-300 transition-colors hover:text-white">
-            Sign in
-          </Link>
-          <Link to="/register" className="btn-primary">
-            Get started
-          </Link>
+
+          {user ? (
+            <div className="flex items-center gap-3">
+              {roleAction && (
+                <Link to={roleAction.to} className="btn-primary">
+                  <roleAction.icon className="h-4 w-4" />
+                  {roleAction.label}
+                </Link>
+              )}
+              <Link
+                to="/profile"
+                className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-slate-200 transition-colors hover:border-brand-400/40 hover:text-white"
+                title="View profile"
+              >
+                <UserIcon className="h-4 w-4 text-brand-400" />
+                <span className="font-medium">{user.name}</span>
+                {user.role && (
+                  <span className="rounded-full bg-brand-500/20 px-2 py-0.5 text-xs font-semibold capitalize text-brand-400">
+                    {user.role}
+                  </span>
+                )}
+              </Link>
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-sm font-medium text-slate-300 transition-colors hover:bg-white/10 hover:text-white"
+                title="Sign out"
+              >
+                <LogOut className="h-4 w-4" />
+                Sign out
+              </button>
+            </div>
+          ) : (
+            <>
+              <Link to="/sign-in" className="text-sm font-medium text-slate-300 transition-colors hover:text-white">
+                Sign in
+              </Link>
+              <Link to="/register" className="btn-primary">
+                Get started
+              </Link>
+            </>
+          )}
         </div>
 
         <button
@@ -130,12 +183,51 @@ export default function Navbar() {
               <ShieldAlert className="h-4 w-4" />
               Report an issue
             </Link>
-            <Link to="/sign-in" onClick={() => setOpen(false)} className="rounded-lg px-3 py-2.5 text-sm font-medium text-slate-200 hover:bg-white/5">
-              Sign in
-            </Link>
-            <Link to="/register" onClick={() => setOpen(false)} className="btn-primary mt-2">
-              Get started
-            </Link>
+
+            {user ? (
+              <div className="mt-2 border-t border-white/10 pt-3">
+                <Link
+                  to="/profile"
+                  onClick={() => setOpen(false)}
+                  className="mb-2 flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-200 hover:bg-white/5"
+                >
+                  <UserIcon className="h-4 w-4 text-brand-400" />
+                  <span>{user.name}</span>
+                  <span className="rounded-full bg-brand-500/20 px-2 py-0.5 text-xs font-semibold capitalize text-brand-400">
+                    {user.role}
+                  </span>
+                </Link>
+                {roleAction && (
+                  <Link to={roleAction.to} onClick={() => setOpen(false)} className="btn-primary mb-2 w-full">
+                    <roleAction.icon className="h-4 w-4" />
+                    {roleAction.label}
+                  </Link>
+                )}
+                <button
+                  onClick={() => {
+                    setOpen(false);
+                    handleLogout();
+                  }}
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-red-400 hover:bg-white/5"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Sign out
+                </button>
+              </div>
+            ) : (
+              <>
+                <Link
+                  to="/sign-in"
+                  onClick={() => setOpen(false)}
+                  className="rounded-lg px-3 py-2.5 text-sm font-medium text-slate-200 hover:bg-white/5"
+                >
+                  Sign in
+                </Link>
+                <Link to="/register" onClick={() => setOpen(false)} className="btn-primary mt-2">
+                  Get started
+                </Link>
+              </>
+            )}
           </div>
         </div>
       )}

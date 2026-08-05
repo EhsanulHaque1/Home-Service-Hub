@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\MailController;
+use App\Http\Controllers\VerificationController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -8,3 +10,9 @@ Route::get('/', function () {
         'status' => 'ok',
     ]);
 });
+
+Route::get('/send-mail', [MailController::class, 'sendEmail']);
+
+// Email Verification signed link callback route
+Route::get('/email/verify/{id}/{hash}', [VerificationController::class, 'verify'])
+    ->name('verification.verify');

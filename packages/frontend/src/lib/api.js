@@ -1,29 +1,19 @@
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
-export async function apiGet(path) {
+/**
+ * Generic fetch wrapper with credentials included for cookie-based auth.
+ */
+async function request(path, options = {}) {
+  const headers = {
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+    ...(options.headers || {}),
+  };
+
   const res = await fetch(`${API_URL}${path}`, {
-    headers: { Accept: 'application/json' },
-  });
-
-  const data = await res.json().catch(() => null);
-
-  if (!res.ok) {
-    const error = new Error(data?.message || 'Request failed');
-    error.status = res.status;
-    throw error;
-  }
-
-  return data;
-}
-
-export async function apiPost(path, body) {
-  const res = await fetch(`${API_URL}${path}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-    },
-    body: JSON.stringify(body),
+    ...options,
+    headers,
+    credentials: 'include',
   });
 
   const data = await res.json().catch(() => null);
@@ -36,4 +26,50 @@ export async function apiPost(path, body) {
   }
 
   return data;
+}
+
+export function apiGet(path) {
+  return request(path, { method: 'GET' });
+}
+
+export function apiPost(path, body) {
+  return request(path, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function apiPut(path, body) {
+  return request(path, {
+    method: 'PUT',
+    body: JSON.stringify(body),
+  });
+}
+
+export function apiDelete(path) {
+  return request(path, { method: 'DELETE' });
+}
+
+export function registerUser(userData) {
+  return apiPost('/register', userData);
+}
+
+export function loginUser(credentials) {
+  return apiPost('/login', credentials);
+}
+
+export function logoutUser() {
+  return apiPost('/logout', {});
+}
+
+export function fetchCurrentUser() {
+  return apiGet('/me');
+}
+
+export function resendVerificationEmail(email) {
+  return apiPost('/email/resend', { email });
+}
+
+export function checkEmailStatus(email) {
+  return apiPost('/check-email', { email });
 }

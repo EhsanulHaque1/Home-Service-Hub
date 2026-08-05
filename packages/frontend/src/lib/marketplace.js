@@ -3,13 +3,27 @@ export const CATEGORIES = ['Plumbing', 'Cleaning', 'Electrical', 'Carpentry', 'P
 export const STATUS_STYLES = {
   open: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/20',
   matching: 'bg-brand-500/15 text-brand-300 border-brand-500/20',
+  assigned: 'bg-teal-500/15 text-teal-300 border-teal-500/20',
   completed: 'bg-slate-500/15 text-slate-300 border-slate-500/20',
 };
 
 export const STATUS_LABELS = {
   open: 'Open',
   matching: 'Matching',
+  assigned: 'Assigned',
   completed: 'Completed',
+};
+
+export const APPLICATION_STATUS_STYLES = {
+  pending: 'bg-amber-500/15 text-amber-300 border-amber-500/20',
+  accepted: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/20',
+  declined: 'bg-red-500/15 text-red-300 border-red-500/20',
+};
+
+export const APPLICATION_STATUS_LABELS = {
+  pending: 'Pending',
+  accepted: 'Accepted',
+  declined: 'Declined',
 };
 
 export const BADGE_STYLES = {

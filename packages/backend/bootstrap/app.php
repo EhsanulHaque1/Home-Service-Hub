@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\ClearCookiesOnLogout;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -13,8 +14,21 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->statefulApi();
+        $middleware->api(append: [
+            ClearCookiesOnLogout::class,
+        ]);
+        $middleware->append(ClearCookiesOnLogout::class);
         $middleware->validateCsrfTokens(except: [
             'api/complaints',
+            'api/tasks',
+            'api/tasks/*',
+            'api/register',
+            'api/login',
+            'api/logout',
+            'api/check-email',
+            'api/email/resend',
+            'api/profile',
+            'api/applications/*',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

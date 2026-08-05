@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { MapPin, Clock, Loader2, Plus, X, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { MapPin, Clock, Loader2, Plus, X, ArrowRight, ChevronLeft, ChevronRight, Send, Check } from 'lucide-react';
 import PageShell from '@/components/PageShell';
 import { apiGet, apiPost } from '@/lib/api';
+import { useAuth } from '@/context/AuthContext';
 import { CATEGORIES, STATUS_STYLES, STATUS_LABELS, formatRelativeTime } from '@/lib/marketplace';
 
 const statuses = ['open', 'matching', 'completed'];
@@ -18,6 +19,14 @@ const emptyForm = {
 };
 
 export default function BrowseTasks() {
+  const { user } = useAuth();
+  const isWorker = user?.role === 'worker';
+  // Stable across renders even though `user?.expertise` is a fresh [] fallback each time.
+  const expertiseKey = (user?.expertise || []).join(',');
+  const workerExpertise = useMemo(() => (expertiseKey ? expertiseKey.split(',') : []), [expertiseKey]);
+  // Workers only ever filter/browse within their own expertise; everyone else sees every category.
+  const pillCategories = isWorker ? workerExpertise : CATEGORIES;
+
   const [searchParams] = useSearchParams();
   const initialCategory = searchParams.get('category') || '';
   const [category, setCategory] = useState(CATEGORIES.includes(initialCategory) ? initialCategory : '');
@@ -28,16 +37,75 @@ export default function BrowseTasks() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
 
-  const [showForm, setShowForm] = useState(false);
+  const [showForm, setShowForm] = useState(searchParams.get('post') === '1');
   const [form, setForm] = useState(emptyForm);
   const [errors, setErrors] = useState({});
   const [submitStatus, setSubmitStatus] = useState('idle');
 
+  const [appliedTaskIds, setAppliedTaskIds] = useState(new Set());
+  const [applyingId, setApplyingId] = useState(null);
+  const [applyErrors, setApplyErrors] = useState({});
+
   useEffect(() => {
+    if (!isWorker) {
+      setAppliedTaskIds(new Set());
+      return;
+    }
+    apiGet('/my-applications')
+      .then((apps) => setAppliedTaskIds(new Set(apps.map((a) => a.task_id))))
+      .catch(() => {});
+  }, [isWorker]);
+
+  // Prefill the post-task form with the signed-in client's own details.
+  useEffect(() => {
+    if (user?.role === 'client') {
+      setForm((f) => (f.client_name || f.client_email ? f : { ...f, client_name: user.name, client_email: user.email }));
+    }
+  }, [user]);
+
+  // Workers can't filter or browse outside their own expertise — clamp back to "all mine"
+  // if a category from the URL (or a stale selection) falls outside it.
+  useEffect(() => {
+    if (isWorker && category && !workerExpertise.includes(category)) {
+      setCategory('');
+    }
+  }, [isWorker, workerExpertise, category]);
+
+  const handleApply = async (taskId) => {
+    setApplyingId(taskId);
+    setApplyErrors((prev) => ({ ...prev, [taskId]: null }));
+    try {
+      const res = await apiPost(`/tasks/${taskId}/apply`, {});
+      setAppliedTaskIds((prev) => new Set(prev).add(taskId));
+      if (res?.task) {
+        setTasks((prev) => prev.map((t) => (t.id === taskId ? res.task : t)));
+      }
+    } catch (err) {
+      if (err.status === 409) {
+        setAppliedTaskIds((prev) => new Set(prev).add(taskId));
+      } else {
+        setApplyErrors((prev) => ({ ...prev, [taskId]: err.message || 'Could not apply. Try again.' }));
+      }
+    } finally {
+      setApplyingId(null);
+    }
+  };
+
+  useEffect(() => {
+    // A worker's "all categories" still means all of *their* categories, not the whole board.
+    if (isWorker && !category && workerExpertise.length === 0) {
+      setTasks([]);
+      setMeta({ current_page: 1, last_page: 1, total: 0 });
+      setLoading(false);
+      setLoadError(false);
+      return;
+    }
+
     setLoading(true);
     setLoadError(false);
     const params = new URLSearchParams({ page: String(page) });
-    if (category) params.set('category', category);
+    const categoryFilter = category || (isWorker ? workerExpertise.join(',') : '');
+    if (categoryFilter) params.set('category', categoryFilter);
     if (status) params.set('status', status);
 
     apiGet(`/tasks?${params.toString()}`)
@@ -47,7 +115,7 @@ export default function BrowseTasks() {
       })
       .catch(() => setLoadError(true))
       .finally(() => setLoading(false));
-  }, [category, status, page]);
+  }, [category, status, page, isWorker, workerExpertise]);
 
   const update = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
 
@@ -266,7 +334,16 @@ export default function BrowseTasks() {
           </form>
         )}
 
-        <div className="mt-10 flex flex-wrap items-center gap-2">
+        {isWorker && (
+          <p className="mt-8 text-xs text-slate-500">
+            Showing tasks in your areas of expertise.{' '}
+            <Link to="/profile" className="font-semibold text-brand-300 hover:text-brand-200">
+              Update expertise
+            </Link>
+          </p>
+        )}
+
+        <div className={`flex flex-wrap items-center gap-2 ${isWorker ? 'mt-3' : 'mt-10'}`}>
           <button
             onClick={() => {
               setCategory('');
@@ -276,9 +353,9 @@ export default function BrowseTasks() {
               category === '' ? 'border-brand-400/50 bg-brand-500/15 text-brand-300' : 'border-white/10 bg-white/5 text-slate-300 hover:text-white'
             }`}
           >
-            All categories
+            {isWorker ? 'All my expertise' : 'All categories'}
           </button>
-          {CATEGORIES.map((c) => (
+          {pillCategories.map((c) => (
             <button
               key={c}
               onClick={() => {
@@ -329,41 +406,87 @@ export default function BrowseTasks() {
             </div>
           ) : loadError ? (
             <p className="px-6 py-16 text-center text-slate-400">Couldn't load tasks. Try again shortly.</p>
+          ) : isWorker && workerExpertise.length === 0 ? (
+            <div className="px-6 py-16 text-center">
+              <p className="text-slate-400">Add at least one area of expertise to see matching tasks.</p>
+              <Link to="/profile" className="btn-primary mt-4 inline-flex">
+                Set your expertise <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
           ) : tasks.length === 0 ? (
             <p className="px-6 py-16 text-center text-slate-400">No tasks match those filters yet.</p>
           ) : (
             <div className="divide-y divide-white/5">
-              {tasks.map((t) => (
-                <div
-                  key={t.id}
-                  className="grid grid-cols-1 gap-3 px-6 py-5 md:grid-cols-[1.6fr_0.8fr_1fr_0.8fr_auto] md:items-center"
-                >
-                  <div className="flex items-start gap-3">
-                    <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-brand-400" />
-                    <div>
-                      <p className="font-semibold text-white">{t.title}</p>
-                      <p className="mt-0.5 line-clamp-1 text-xs text-slate-400">{t.description}</p>
+              {tasks.map((t) => {
+                const applied = appliedTaskIds.has(t.id);
+                const closed = t.status === 'completed';
+
+                return (
+                  <div
+                    key={t.id}
+                    className="grid grid-cols-1 gap-3 px-6 py-5 md:grid-cols-[1.4fr_0.7fr_0.9fr_0.7fr_auto_auto] md:items-center"
+                  >
+                    <div className="flex items-start gap-3">
+                      <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-brand-400" />
+                      <div>
+                        <p className="font-semibold text-white">{t.title}</p>
+                        <p className="mt-0.5 line-clamp-1 text-xs text-slate-400">{t.description}</p>
+                      </div>
+                    </div>
+
+                    <span className="hidden text-sm text-slate-300 md:block">{t.category}</span>
+
+                    <span className="hidden items-center gap-1.5 text-sm text-slate-400 md:flex">
+                      <MapPin className="h-4 w-4 text-brand-400" /> {t.location}
+                    </span>
+
+                    <div className="flex items-center justify-between md:block">
+                      <span className="font-display text-lg font-700 text-white">${t.budget}</span>
+                      <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[t.status]}`}>
+                        {STATUS_LABELS[t.status]}
+                      </span>
+                    </div>
+
+                    <span className="flex items-center gap-1 text-xs text-slate-500 md:justify-end">
+                      <Clock className="h-3.5 w-3.5" /> {formatRelativeTime(t.created_at)}
+                    </span>
+
+                    <div className="flex items-center justify-between gap-2 md:justify-end">
+                      {isWorker ? (
+                        applied ? (
+                          <span className="flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/15 px-3 py-1.5 text-xs font-semibold text-emerald-300">
+                            <Check className="h-3.5 w-3.5" /> Applied
+                          </span>
+                        ) : closed ? (
+                          <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-500">
+                            Closed
+                          </span>
+                        ) : (
+                          <div className="flex flex-col items-end gap-1">
+                            <button
+                              onClick={() => handleApply(t.id)}
+                              disabled={applyingId === t.id}
+                              className="flex items-center gap-1.5 rounded-full border border-brand-400/50 bg-brand-500/15 px-3 py-1.5 text-xs font-semibold text-brand-300 transition-colors hover:bg-brand-500 hover:text-ink-950 disabled:opacity-60"
+                            >
+                              {applyingId === t.id ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Send className="h-3.5 w-3.5" />
+                              )}
+                              Apply
+                            </button>
+                            {applyErrors[t.id] && <p className="text-[11px] text-red-400">{applyErrors[t.id]}</p>}
+                          </div>
+                        )
+                      ) : !user ? (
+                        <Link to="/sign-in" className="text-xs font-semibold text-brand-300 hover:text-brand-200">
+                          Sign in to apply
+                        </Link>
+                      ) : null}
                     </div>
                   </div>
-
-                  <span className="hidden text-sm text-slate-300 md:block">{t.category}</span>
-
-                  <span className="hidden items-center gap-1.5 text-sm text-slate-400 md:flex">
-                    <MapPin className="h-4 w-4 text-brand-400" /> {t.location}
-                  </span>
-
-                  <div className="flex items-center justify-between md:block">
-                    <span className="font-display text-lg font-700 text-white">${t.budget}</span>
-                    <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[t.status]}`}>
-                      {STATUS_LABELS[t.status]}
-                    </span>
-                  </div>
-
-                  <span className="flex items-center gap-1 text-xs text-slate-500 md:justify-end">
-                    <Clock className="h-3.5 w-3.5" /> {formatRelativeTime(t.created_at)}
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

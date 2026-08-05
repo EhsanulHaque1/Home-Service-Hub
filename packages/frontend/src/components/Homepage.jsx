@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
 import {
   Wrench,
   Sparkles,
@@ -15,6 +16,8 @@ import {
   BadgeCheck,
   Quote,
   Check,
+  CheckCircle2,
+  X,
 } from 'lucide-react';
 
 const categories = [
@@ -84,12 +87,24 @@ const rotating = ['plumber', 'maiden', 'electrician'];
 const perks = ['No subscription', 'Pay only when a job is done', 'Cancel a task anytime'];
 
 function Hero() {
+  const { user } = useAuth();
   const [idx, setIdx] = useState(0);
 
   useEffect(() => {
     const t = setInterval(() => setIdx((i) => (i + 1) % rotating.length), 2200);
     return () => clearInterval(t);
   }, []);
+
+  const firstName = user?.name?.split(' ')[0];
+  const isWorker = user?.role === 'worker';
+  const isClient = user?.role === 'client';
+
+  const eyebrow = user ? `Welcome back, ${firstName}` : 'Live marketplace for home services';
+  const subtitle = isWorker
+    ? 'Browse live tasks in your expertise, apply in one tap, and get paid the moment a job completes.'
+    : isClient
+      ? 'Post a new task, track the ones already in progress, and pay securely the moment each job is done.'
+      : 'Post your task, get matched with nearby workers, and pay securely the moment the job is done. No phone tag, no cash, no surprises.';
 
   return (
     <section id="top" className="relative overflow-hidden pt-28 pb-20 sm:pt-36">
@@ -105,7 +120,7 @@ function Hero() {
                 <span className="absolute inline-flex h-full w-full animate-pulse-ring rounded-full bg-brand-400" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-brand-400" />
               </span>
-              Live marketplace for home services
+              {eyebrow}
             </span>
 
             <h1 className="mt-6 font-display text-4xl font-800 leading-[1.05] tracking-tight text-white sm:text-5xl lg:text-6xl">
@@ -119,19 +134,40 @@ function Hero() {
               in minutes, not days.
             </h1>
 
-            <p className="mt-6 max-w-xl text-lg leading-relaxed text-slate-300">
-              Post your task, get matched with nearby workers, and pay securely the moment the job is done. No phone
-              tag, no cash, no surprises.
-            </p>
+            <p className="mt-6 max-w-xl text-lg leading-relaxed text-slate-300">{subtitle}</p>
 
             <div className="mt-8 flex flex-wrap items-center gap-3">
-              <a href="#cta" className="btn-primary">
-                Post a task
-                <ArrowRight className="h-4 w-4" />
-              </a>
-              <a href="#workers" className="btn-ghost">
-                I'm a worker
-              </a>
+              {isWorker ? (
+                <>
+                  <Link to="/tasks" className="btn-primary">
+                    Browse tasks
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                  <Link to="/dashboard" className="btn-ghost">
+                    View dashboard
+                  </Link>
+                </>
+              ) : isClient ? (
+                <>
+                  <Link to="/tasks?post=1" className="btn-primary">
+                    Post a task
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                  <Link to="/dashboard" className="btn-ghost">
+                    View dashboard
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <a href="#cta" className="btn-primary">
+                    Post a task
+                    <ArrowRight className="h-4 w-4" />
+                  </a>
+                  <a href="#workers" className="btn-ghost">
+                    I'm a worker
+                  </a>
+                </>
+              )}
             </div>
 
             <div className="mt-10 flex flex-wrap gap-x-6 gap-y-3">
@@ -203,7 +239,7 @@ function Hero() {
               </button>
             </div>
 
-            <div className="absolute -left-6 bottom-10 hidden animate-floaty rounded-2xl border border-white/10 bg-ink-850/90 px-4 py-3 shadow-card backdrop-blur sm:block">
+            <div className="absolute -left-6 -bottom-12 hidden animate-floaty rounded-2xl border border-white/10 bg-ink-850/90 px-4 py-3 shadow-card backdrop-blur sm:block">
               <div className="flex items-center gap-2">
                 <ShieldCheck className="h-5 w-5 text-teal-400" />
                 <div>
@@ -280,7 +316,20 @@ function Services() {
 }
 
 function HowItWorks() {
+  const { user } = useAuth();
   const [role, setRole] = useState('customer');
+  const [touched, setTouched] = useState(false);
+
+  // Default to the signed-in user's own role once it loads, unless they've already toggled it themselves.
+  useEffect(() => {
+    if (!touched && user?.role === 'worker') setRole('worker');
+  }, [user, touched]);
+
+  const selectRole = (r) => {
+    setRole(r);
+    setTouched(true);
+  };
+
   const steps = role === 'customer' ? stepsCustomer : stepsWorker;
 
   return (
@@ -300,7 +349,7 @@ function HowItWorks() {
 
           <div className="inline-flex rounded-full border border-white/10 bg-ink-850 p-1">
             <button
-              onClick={() => setRole('customer')}
+              onClick={() => selectRole('customer')}
               className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-all ${
                 role === 'customer' ? 'bg-brand-500 text-ink-950 shadow-glow' : 'text-slate-300 hover:text-white'
               }`}
@@ -308,7 +357,7 @@ function HowItWorks() {
               <User className="h-4 w-4" /> Customer
             </button>
             <button
-              onClick={() => setRole('worker')}
+              onClick={() => selectRole('worker')}
               className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-all ${
                 role === 'worker' ? 'bg-brand-500 text-ink-950 shadow-glow' : 'text-slate-300 hover:text-white'
               }`}
@@ -528,6 +577,81 @@ function Testimonials() {
 }
 
 function CTA() {
+  const { user } = useAuth();
+
+  if (user) {
+    const isWorker = user.role === 'worker';
+    const copy = isWorker
+      ? {
+          heading: 'Ready to find your',
+          highlight: 'next job?',
+          subtitle: 'Browse live tasks in your expertise and apply in one tap — you get paid the moment a job completes.',
+          perks: ['No subscription fees', 'Get paid the moment a job completes', 'Choose only the tasks you want'],
+          primary: { to: '/tasks', label: 'Browse tasks' },
+          secondary: { to: '/dashboard', label: 'View my applications' },
+        }
+      : {
+          heading: 'Ready to post',
+          highlight: 'another task?',
+          subtitle: 'Get matched with a nearby worker in minutes and pay securely once the job is done.',
+          perks: ['No subscription', 'Pay only when a job is done', 'Cancel a task anytime'],
+          primary: { to: '/tasks?post=1', label: 'Post a task' },
+          secondary: { to: '/dashboard', label: 'View my tasks' },
+        };
+
+    return (
+      <section id="cta" className="py-20 sm:py-28">
+        <div className="container-x">
+          <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-ink-850 to-ink-900 p-8 sm:p-12 lg:p-16">
+            <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-brand-500/20 blur-[100px]" />
+            <div className="pointer-events-none absolute -bottom-24 -left-10 h-72 w-72 rounded-full bg-teal-500/10 blur-[100px]" />
+
+            <div className="relative grid items-center gap-10 lg:grid-cols-2">
+              <div>
+                <h2 className="font-display text-3xl font-800 leading-tight tracking-tight text-white sm:text-4xl">
+                  {copy.heading} <span className="text-gradient">{copy.highlight}</span>
+                </h2>
+                <p className="mt-4 max-w-md text-slate-300">{copy.subtitle}</p>
+
+                <ul className="mt-6 space-y-2.5">
+                  {copy.perks.map((p) => (
+                    <li key={p} className="flex items-center gap-2.5 text-sm text-slate-200">
+                      <span className="grid h-5 w-5 place-items-center rounded-full bg-brand-500/20 text-brand-300">
+                        <Check className="h-3.5 w-3.5" strokeWidth={3} />
+                      </span>
+                      {p}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="card flex flex-col items-center gap-4 p-8 text-center sm:p-10">
+                <span className="grid h-14 w-14 place-items-center rounded-2xl bg-brand-500/15 text-brand-300">
+                  {isWorker ? <Search className="h-6 w-6" /> : <Zap className="h-6 w-6" />}
+                </span>
+                <p className="text-sm text-slate-300">
+                  {isWorker
+                    ? "You're all set — jump back in and see what's waiting."
+                    : "You're all set — post a task and get matched in minutes."}
+                </p>
+                <Link to={copy.primary.to} className="btn-primary w-full">
+                  {copy.primary.label} <ArrowRight className="h-4 w-4" />
+                </Link>
+                <Link to={copy.secondary.to} className="btn-ghost w-full">
+                  {copy.secondary.label}
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  return <GuestCTA />;
+}
+
+function GuestCTA() {
   const [role, setRole] = useState('customer');
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
@@ -638,8 +762,50 @@ function CTA() {
 }
 
 export default function Homepage() {
+  const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [showVerifiedToast, setShowVerifiedToast] = useState(false);
+
+  useEffect(() => {
+    // Only display verification toast if user is currently signed in AND verified param exists
+    if (user && searchParams.get('verified') === '1') {
+      setShowVerifiedToast(true);
+
+      const timer = setTimeout(() => {
+        setShowVerifiedToast(false);
+        searchParams.delete('verified');
+        setSearchParams(searchParams, { replace: true });
+      }, 4000);
+
+      return () => clearTimeout(timer);
+    } else {
+      setShowVerifiedToast(false);
+    }
+  }, [user, searchParams, setSearchParams]);
+
+  const dismissToast = () => {
+    setShowVerifiedToast(false);
+    searchParams.delete('verified');
+    setSearchParams(searchParams, { replace: true });
+  };
+
   return (
-    <main>
+    <main className="relative">
+      {showVerifiedToast && (
+        <div className="fixed top-20 right-6 z-50 flex items-center gap-3 rounded-2xl border border-emerald-500/30 bg-ink-900/95 p-4 text-emerald-400 shadow-2xl backdrop-blur-md transition-all">
+          <CheckCircle2 className="h-6 w-6 shrink-0 text-emerald-400" />
+          <div>
+            <p className="text-sm font-bold text-white">Email Verified Successfully!</p>
+            <p className="text-xs text-slate-400">Welcome to Home Service Hub. You are now logged in.</p>
+          </div>
+          <button
+            onClick={dismissToast}
+            className="ml-2 rounded-lg p-1 text-slate-400 hover:bg-white/10 hover:text-white"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
       <Hero />
       <Stats />
       <Services />
