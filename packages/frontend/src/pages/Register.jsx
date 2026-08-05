@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { User, Wrench, Mail, Lock, Phone, Eye, EyeOff, Check, ArrowRight, Loader2, MapPin, AlertCircle, RefreshCw } from 'lucide-react';
+import { User, Wrench, Mail, Lock, Phone, Eye, EyeOff, Check, ArrowRight, Loader2, MapPin, AlertCircle } from 'lucide-react';
 import AuthLayout from '@/components/AuthLayout';
 import { useEyeTracking } from '@/hooks/useEyeTracking';
 import { createRipple } from '@/lib/ripple';
@@ -100,7 +100,7 @@ export default function Register() {
         password: form.password,
         role,
         location: form.location,
-        trade: form.trade,
+        expertise: role === 'worker' ? [form.trade] : undefined,
       });
       if (res?.requires_verification) {
         setStatus('verification_pending');

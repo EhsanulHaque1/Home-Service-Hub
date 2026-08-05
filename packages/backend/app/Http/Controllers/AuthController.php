@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Mail\WelcomeEmail;
+use App\Models\Task;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -49,7 +50,8 @@ class AuthController extends Controller
             'role' => ['required', 'string', Rule::in(['client', 'worker'])],
             'phone' => ['nullable', 'string', 'max:50'],
             'location' => ['required', 'string', 'max:255'],
-            'trade' => ['nullable', 'string', 'max:255', Rule::requiredIf($request->role === 'worker')],
+            'expertise' => [Rule::requiredIf($request->role === 'worker'), 'array', 'min:1'],
+            'expertise.*' => ['string', Rule::in(Task::CATEGORIES)],
         ]);
 
         $user = User::create([
@@ -59,7 +61,7 @@ class AuthController extends Controller
             'role' => $validated['role'],
             'phone' => $validated['phone'] ?? null,
             'location' => $validated['location'],
-            'trade' => $validated['role'] === 'worker' ? ($validated['trade'] ?? null) : null,
+            'expertise' => $validated['role'] === 'worker' ? ($validated['expertise'] ?? []) : null,
         ]);
 
         $verificationUrl = URL::temporarySignedRoute(
@@ -224,6 +226,35 @@ class AuthController extends Controller
 
         return response()->json([
             'user' => $user,
+        ]);
+    }
+
+    /**
+     * Update the authenticated user's profile details.
+     * Email and role are intentionally not editable here.
+     */
+    public function updateProfile(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:50'],
+            'location' => ['required', 'string', 'max:255'],
+            'expertise' => [Rule::requiredIf($user->role === 'worker'), 'array', 'min:1'],
+            'expertise.*' => ['string', Rule::in(Task::CATEGORIES)],
+        ]);
+
+        $user->update([
+            'name' => $validated['name'],
+            'phone' => $validated['phone'] ?? null,
+            'location' => $validated['location'],
+            'expertise' => $user->role === 'worker' ? ($validated['expertise'] ?? []) : null,
+        ]);
+
+        return response()->json([
+            'message' => 'Profile updated.',
+            'user' => $user->fresh(),
         ]);
     }
 }

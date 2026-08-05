@@ -26,7 +26,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'role',
         'phone',
         'location',
-        'trade',
+        'expertise',
     ];
 
     /**
@@ -49,6 +49,17 @@ class User extends Authenticatable implements MustVerifyEmail
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'expertise' => 'array',
         ];
+    }
+
+    public function tasks()
+    {
+        return $this->hasMany(Task::class);
+    }
+
+    public function applications()
+    {
+        return $this->hasMany(TaskApplication::class);
     }
 }

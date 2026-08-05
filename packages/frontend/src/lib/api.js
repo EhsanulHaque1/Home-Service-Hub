@@ -39,6 +39,17 @@ export function apiPost(path, body) {
   });
 }
 
+export function apiPut(path, body) {
+  return request(path, {
+    method: 'PUT',
+    body: JSON.stringify(body),
+  });
+}
+
+export function apiDelete(path) {
+  return request(path, { method: 'DELETE' });
+}
+
 export function registerUser(userData) {
   return apiPost('/register', userData);
 }

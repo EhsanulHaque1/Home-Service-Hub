@@ -2,7 +2,10 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ComplaintController;
+use App\Http\Controllers\TaskApplicationController;
+use App\Http\Controllers\TaskController;
 use App\Http\Controllers\VerificationController;
+use App\Http\Controllers\WorkerController;
 use Illuminate\Support\Facades\Route;
 
 // Public auth routes
@@ -16,8 +19,25 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
     Route::get('/user', [AuthController::class, 'me']);
+    Route::put('/profile', [AuthController::class, 'updateProfile']);
+
+    Route::get('/my-applications', [TaskApplicationController::class, 'index']);
+    Route::post('/tasks/{task}/apply', [TaskApplicationController::class, 'store']);
+    Route::post('/applications/{application}/confirm', [TaskApplicationController::class, 'confirm']);
+
+    Route::get('/my-tasks', [TaskController::class, 'myTasks']);
+    Route::put('/tasks/{task}', [TaskController::class, 'update']);
+    Route::delete('/tasks/{task}', [TaskController::class, 'destroy']);
+    Route::get('/tasks/{task}/applicants', [TaskController::class, 'applicants']);
 });
 
 // Complaints routes
 Route::get('/complaints', [ComplaintController::class, 'index']);
 Route::post('/complaints', [ComplaintController::class, 'store']);
+
+Route::get('/tasks', [TaskController::class, 'index']);
+Route::post('/tasks', [TaskController::class, 'store']);
+Route::get('/tasks/{task}', [TaskController::class, 'show']);
+
+Route::get('/workers', [WorkerController::class, 'index']);
+Route::get('/workers/{worker}', [WorkerController::class, 'show']);
