@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Wrench, Menu, X, ShieldAlert, LayoutDashboard, LogOut, User as UserIcon, Send, ClipboardPlus } from 'lucide-react';
+import { Wrench, Menu, X, ShieldAlert, LayoutDashboard, LogOut, User as UserIcon, Send, ClipboardPlus, MessageSquare } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
 const links = [
@@ -101,6 +101,13 @@ export default function Navbar() {
                 </Link>
               )}
               <Link
+                to="/chat"
+                className="flex items-center gap-1.5 text-sm font-medium text-slate-300 transition-colors hover:text-white"
+              >
+                <MessageSquare className="h-4 w-4" />
+                Chat
+              </Link>
+              <Link
                 to="/profile"
                 className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-slate-200 transition-colors hover:border-brand-400/40 hover:text-white"
                 title="View profile"
@@ -196,6 +203,14 @@ export default function Navbar() {
                   <span className="rounded-full bg-brand-500/20 px-2 py-0.5 text-xs font-semibold capitalize text-brand-400">
                     {user.role}
                   </span>
+                </Link>
+                <Link
+                  to="/chat"
+                  onClick={() => setOpen(false)}
+                  className="mb-2 flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-200 hover:bg-white/5"
+                >
+                  <MessageSquare className="h-4 w-4" />
+                  Chat
                 </Link>
                 {roleAction && (
                   <Link to={roleAction.to} onClick={() => setOpen(false)} className="btn-primary mb-2 w-full">

@@ -12,8 +12,6 @@ class TaskController extends Controller
         $query = Task::query()->latest();
 
         if ($request->filled('category')) {
-            // Accepts either a single category or a comma-separated list (used by
-            // workers browsing every category they have expertise in at once).
             $categories = array_filter(explode(',', (string) $request->string('category')));
             $query->whereIn('category', $categories);
         }
@@ -22,7 +20,7 @@ class TaskController extends Controller
             $query->where('status', $request->string('status'));
         }
 
-        return $query->paginate(15);
+        return $query->with('user:id,name')->paginate(15);
     }
 
     public function show(Task $task)

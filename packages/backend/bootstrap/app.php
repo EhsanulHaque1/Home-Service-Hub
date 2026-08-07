@@ -20,6 +20,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->append(ClearCookiesOnLogout::class);
         $middleware->validateCsrfTokens(except: [
             'api/complaints',
+            'api/chat',
+            'api/chat/*',
             'api/tasks',
             'api/tasks/*',
             'api/register',

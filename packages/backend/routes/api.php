@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\ChatController;
 use App\Http\Controllers\ComplaintController;
 use App\Http\Controllers\TaskApplicationController;
 use App\Http\Controllers\TaskController;
@@ -29,6 +30,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/tasks/{task}', [TaskController::class, 'update']);
     Route::delete('/tasks/{task}', [TaskController::class, 'destroy']);
     Route::get('/tasks/{task}/applicants', [TaskController::class, 'applicants']);
+
+    Route::get('/chat/conversations', [ChatController::class, 'conversations']);
+    Route::get('/chat/users', [ChatController::class, 'users']);
+    Route::get('/chat/messages/{user}', [ChatController::class, 'messages']);
+    Route::post('/chat/messages', [ChatController::class, 'store']);
+    Route::put('/chat/messages/{message}', [ChatController::class, 'update']);
+    Route::delete('/chat/messages/{message}', [ChatController::class, 'destroy']);
 });
 
 // Complaints routes
