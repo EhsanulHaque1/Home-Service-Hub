@@ -20,6 +20,7 @@ import {
   UserCheck,
   Phone,
   BadgeCheck,
+  MessageSquare,
 } from 'lucide-react';
 import PageShell from '@/components/PageShell';
 import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api';
@@ -322,6 +323,13 @@ function ApplicantsPanel({ task, onTaskUpdated }) {
               </div>
 
               <div className="flex shrink-0 items-center gap-2">
+                <Link
+                  to={`/chat?with=${a.user.id}`}
+                  className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-300 transition-colors hover:text-white"
+                >
+                  <MessageSquare className="h-3.5 w-3.5" />
+                  Chat
+                </Link>
                 <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${APPLICATION_STATUS_STYLES[a.status]}`}>
                   {APPLICATION_STATUS_LABELS[a.status]}
                 </span>
@@ -600,17 +608,24 @@ function WorkerProgress() {
                       <Clock className="h-3 w-3" /> Applied {formatRelativeTime(a.created_at)}
                     </p>
                   </div>
-                  {a.task && (
-                    <div className="flex shrink-0 flex-wrap items-center gap-2">
-                      <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${APPLICATION_STATUS_STYLES[a.status]}`}>
-                        {APPLICATION_STATUS_LABELS[a.status]}
-                      </span>
-                      <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[a.task.status]}`}>
-                        {STATUS_LABELS[a.task.status]}
-                      </span>
-                      <span className="font-display text-sm font-700 text-white">${a.task.budget}</span>
-                    </div>
-                  )}
+                   {a.task && (
+                     <div className="flex shrink-0 flex-wrap items-center gap-2">
+                       <Link
+                         to={`/chat?with=${a.task.user_id}`}
+                         className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-300 transition-colors hover:text-white"
+                       >
+                         <MessageSquare className="h-3.5 w-3.5" />
+                         Chat
+                       </Link>
+                       <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${APPLICATION_STATUS_STYLES[a.status]}`}>
+                         {APPLICATION_STATUS_LABELS[a.status]}
+                       </span>
+                       <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[a.task.status]}`}>
+                         {STATUS_LABELS[a.task.status]}
+                       </span>
+                       <span className="font-display text-sm font-700 text-white">${a.task.budget}</span>
+                     </div>
+                   )}
                 </div>
               ))}
             </div>

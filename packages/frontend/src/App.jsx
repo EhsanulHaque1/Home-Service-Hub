@@ -9,6 +9,7 @@ import BrowseTasks from '@/pages/BrowseTasks';
 import Workers from '@/pages/Workers';
 import Dashboard from '@/pages/Dashboard';
 import Profile from '@/pages/Profile';
+import Chat from '@/pages/Chat';
 
 function HomeLayout() {
   return (
@@ -33,6 +34,7 @@ export default function App() {
         <Route path="/workers" element={<Workers />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/chat" element={<Chat />} />
       </Routes>
     </div>
   );
