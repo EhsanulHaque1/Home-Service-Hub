@@ -21,6 +21,7 @@ const emptyForm = {
 export default function BrowseTasks() {
   const { user } = useAuth();
   const isWorker = user?.role === 'worker';
+  const isClient = user?.role === 'client';
   // Stable across renders even though `user?.expertise` is a fresh [] fallback each time.
   const expertiseKey = (user?.expertise || []).join(',');
   const workerExpertise = useMemo(() => (expertiseKey ? expertiseKey.split(',') : []), [expertiseKey]);
@@ -173,16 +174,22 @@ export default function BrowseTasks() {
               Real tasks posted by real customers. Filter by category or status, or post one of your own.
             </p>
           </div>
-          <button
-            onClick={() => setShowForm((v) => !v)}
-            className="btn-primary shrink-0"
-          >
-            {showForm ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-            {showForm ? 'Close' : 'Post a task'}
-          </button>
+          {isClient ? (
+            <button
+              onClick={() => setShowForm((v) => !v)}
+              className="btn-primary shrink-0"
+            >
+              {showForm ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+              {showForm ? 'Close' : 'Post a task'}
+            </button>
+          ) : !user ? (
+            <Link to="/sign-in" className="btn-primary shrink-0">
+              Sign in to post a task
+            </Link>
+          ) : null}
         </div>
 
-        {showForm && (
+        {isClient && showForm && (
           <form onSubmit={handleSubmit} noValidate className="card mt-8 space-y-5 p-6 sm:p-8">
             <div className="grid gap-5 sm:grid-cols-2">
               <div>
