@@ -127,7 +127,10 @@ class ChatController extends Controller
             'conversation' => ['required', 'string', 'max:2000'],
         ]);
 
-        $message->update(['conversation' => $validated['conversation']]);
+        $message->update([
+            'conversation' => $validated['conversation'],
+            'updated_at' => now(),
+        ]);
 
         return response()->json([
             'message' => 'Message updated.',
