@@ -1,18 +1,12 @@
 <?php
 
-use App\Http\Controllers\MailController;
 use App\Http\Controllers\VerificationController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    return response()->json([
-        'name' => config('app.name'),
-        'status' => 'ok',
-    ]);
+    return ['Laravel' => app()->version()];
 });
 
-Route::get('/send-mail', [MailController::class, 'sendEmail']);
-
-// Email Verification signed link callback route
-Route::get('/email/verify/{id}/{hash}', [VerificationController::class, 'verify'])
+Route::get('/verify-email/{id}/{hash}', [VerificationController::class, 'verify'])
+    ->middleware(['signed'])
     ->name('verification.verify');
