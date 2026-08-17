@@ -10,6 +10,8 @@ import Workers from '@/pages/Workers';
 import Dashboard from '@/pages/Dashboard';
 import Profile from '@/pages/Profile';
 import Chat from '@/pages/Chat';
+import ForgotPassword from '@/pages/ForgotPassword';
+import ResetPassword from '@/pages/ResetPassword';
 
 function HomeLayout() {
   return (
@@ -29,6 +31,8 @@ export default function App() {
         <Route path="/sign-in" element={<SignIn />} />
         <Route path="/signin" element={<SignIn />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/report-worker" element={<ReportWorker />} />
         <Route path="/tasks" element={<BrowseTasks />} />
         <Route path="/workers" element={<Workers />} />

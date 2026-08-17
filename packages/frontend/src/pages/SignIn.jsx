@@ -13,7 +13,7 @@ export default function SignIn() {
   const [searchParams] = useSearchParams();
   const cardRef = useCardTilt();
   const submitBtnRef = useRef(null);
-  const { user, login, refreshUser, notifyAuthChange } = useAuth();
+  const { user, login, logout, refreshUser, notifyAuthChange } = useAuth();
 
   const [form, setForm] = useState({ email: '', password: '', remember: false });
   const [showPassword, setShowPassword] = useState(false);
@@ -30,18 +30,27 @@ export default function SignIn() {
 
   const verifiedParam = searchParams.get('verified');
   const alreadyVerifiedParam = searchParams.get('already_verified');
+  const passwordResetParam = searchParams.get('password_reset');
+  const accountDeletedParam = searchParams.get('account_deleted');
   const errorParam = searchParams.get('error');
 
-  // Real-time redirect if user is authenticated
+  // If user arrived after account deletion, immediately purge all local auth state
   useEffect(() => {
-    if (user) {
+    if (accountDeletedParam === '1') {
+      logout();
+    }
+  }, [accountDeletedParam, logout]);
+
+  // Real-time redirect if user is authenticated (bypassed if account was just deleted)
+  useEffect(() => {
+    if (user && accountDeletedParam !== '1') {
       setStatus('success');
       const timer = setTimeout(() => {
         navigate('/?verified=1');
       }, 800);
       return () => clearTimeout(timer);
     }
-  }, [user, navigate]);
+  }, [user, accountDeletedParam, navigate]);
 
   // Real-time debounced email lookup as user types
   useEffect(() => {
@@ -89,7 +98,7 @@ export default function SignIn() {
             navigate('/?verified=1');
           }
         }
-      } catch (e) {}
+      } catch (e) { }
     }, 1500);
 
     return () => clearInterval(interval);
@@ -207,6 +216,20 @@ export default function SignIn() {
           </div>
 
           <h2>Account Login</h2>
+
+          {passwordResetParam === '1' && (
+            <div className="mb-4 flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs text-emerald-400">
+              <CheckCircle className="h-4 w-4 shrink-0" />
+              <span>Password reset successfully! Please sign in with your new password.</span>
+            </div>
+          )}
+
+          {accountDeletedParam === '1' && (
+            <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-300">
+              <CheckCircle className="h-4 w-4 shrink-0 text-red-400" />
+              <span>Your account and all associated data have been permanently deleted.</span>
+            </div>
+          )}
 
           {verifiedParam === '1' && (
             <div className="mb-4 flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs text-emerald-400">
@@ -362,9 +385,9 @@ export default function SignIn() {
                 <input type="checkbox" checked={form.remember} onChange={update('remember')} />
                 Remember me
               </label>
-              <a href="#" className="forgot-pass" onClick={(e) => e.preventDefault()}>
+              <Link to="/forgot-password" className="forgot-pass">
                 Forgot Password?
-              </a>
+              </Link>
             </div>
 
             <button

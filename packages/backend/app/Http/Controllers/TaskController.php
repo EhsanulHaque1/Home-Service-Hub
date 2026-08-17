@@ -30,16 +30,11 @@ class TaskController extends Controller
 
     public function store(Request $request)
     {
-        if ($request->user()->role !== 'client') {
-            return response()->json([
-                'message' => 'Only client accounts can post tasks.',
-            ], 403);
-        }
-
         $validated = $request->validate($this->taskRules());
 
         // Attach the task to the signed-in client so it shows up on their dashboard.
-        $validated['user_id'] = $request->user()->id;
+        // Posting still works for guests, who just won't have a "my tasks" view.
+        $validated['user_id'] = $request->user()?->id;
 
         $task = Task::create($validated);
 

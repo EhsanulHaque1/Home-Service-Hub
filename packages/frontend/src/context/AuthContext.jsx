@@ -104,17 +104,24 @@ export function AuthProvider({ children }) {
 
   const logout = async () => {
     try {
-      await logoutUser();
+      await logoutUser().catch(() => null);
     } finally {
       setUser(null);
       notifyAuthChange();
 
-      // Wipe any non-httpOnly client cookies on sign out
+      // Wipe all non-httpOnly client cookies across common domain variations
       try {
-        document.cookie.split(';').forEach((c) => {
-          document.cookie = c
-            .replace(/^ +/, '')
-            .replace(/=.*/, '=;expires=' + new Date(0).toUTCString() + ';path=/');
+        const cookies = document.cookie.split(';');
+        const domains = [window.location.hostname, '.' + window.location.hostname, ''];
+        cookies.forEach((c) => {
+          const name = c.split('=')[0].trim();
+          if (name) {
+            domains.forEach((d) => {
+              const domainAttr = d ? `;domain=${d}` : '';
+              document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/${domainAttr}`;
+              document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/api${domainAttr}`;
+            });
+          }
         });
       } catch (e) {}
     }

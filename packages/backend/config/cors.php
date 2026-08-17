@@ -15,22 +15,13 @@ return [
     |
     */
 
-    'paths' => ['*'],
+    'paths' => ['api/*', 'sanctum/csrf-cookie'],
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => array_filter(array_unique(array_merge(
-        explode(',', env('FRONTEND_URLS', '')),
-        [
-            env('FRONTEND_URL', 'http://localhost:5173'),
-            'http://localhost:5173',
-            'http://127.0.0.1:5173',
-            'http://localhost:5174',
-            'http://127.0.0.1:5174',
-            'http://localhost:3000',
-            'http://127.0.0.1:3000',
-        ]
-    ))),
+    'allowed_origins' => explode(',', env('FRONTEND_URLS', 'http://localhost:5173')),
+
+    'allowed_origins_patterns' => ['#^http://localhost:\d+$#'],
 
     'allowed_headers' => ['*'],
 
