@@ -16,15 +16,17 @@ class WelcomeEmail extends Mailable
     public $msg;
     public $sub;
     public $verificationUrl;
+    public $buttonText;
 
     /**
      * Create a new message instance.
      */
-    public function __construct($msg, $subject, $verificationUrl = null)
+    public function __construct($msg, $subject, $verificationUrl = null, $buttonText = 'Verify Email Address')
     {
         $this->msg = $msg;
         $this->sub = $subject;
         $this->verificationUrl = $verificationUrl;
+        $this->buttonText = $buttonText;
     }
 
     /**

@@ -73,3 +73,16 @@ export function resendVerificationEmail(email) {
 export function checkEmailStatus(email) {
   return apiPost('/check-email', { email });
 }
+
+export function sendForgotPasswordLink(email) {
+  return apiPost('/forgot-password', { email });
+}
+
+export function resetUserPassword(data) {
+  return apiPost('/reset-password', data);
+}
+
+export function requestAccountDeletion() {
+  return apiPost('/account/delete-request', {});
+}
+

@@ -19,7 +19,7 @@
                 
                 @if(!empty($verificationUrl))
                     <div style="margin: 30px 0; text-align: center;">
-                        <a href="{{ $verificationUrl }}" target="_blank" style="background-color: #2563eb; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px; display: inline-block;">Verify Email Address</a>
+                        <a href="{{ $verificationUrl }}" target="_blank" style="background-color: #2563eb; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px; display: inline-block;">{{ $buttonText ?? 'Verify Email Address' }}</a>
                     </div>
                     <p style="font-size: 14px; color: #64748b; line-height: 1.4;">
                         If the button above does not work, copy and paste the following URL into your web browser:
