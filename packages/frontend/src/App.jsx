@@ -12,6 +12,7 @@ import Profile from '@/pages/Profile';
 import Chat from '@/pages/Chat';
 import ForgotPassword from '@/pages/ForgotPassword';
 import ResetPassword from '@/pages/ResetPassword';
+import Feedback from '@/pages/Feedback';
 
 function HomeLayout() {
   return (
@@ -38,6 +39,7 @@ export default function App() {
         <Route path="/workers" element={<Workers />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/feedback" element={<Feedback />} />
         <Route path="/chat" element={<Chat />} />
       </Routes>
     </div>

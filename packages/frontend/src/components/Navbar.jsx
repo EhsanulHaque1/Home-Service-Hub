@@ -91,6 +91,15 @@ export default function Navbar() {
             <ShieldAlert className="h-4 w-4" />
             Report an issue
           </Link>
+          {user && (
+            <Link
+              to="/feedback"
+              className="flex items-center gap-1.5 text-sm font-medium text-slate-300 transition-colors hover:text-white"
+            >
+              <MessageSquare className="h-4 w-4" />
+              Feedback
+            </Link>
+          )}
 
           {user ? (
             <div className="flex items-center gap-3">
@@ -190,6 +199,16 @@ export default function Navbar() {
               <ShieldAlert className="h-4 w-4" />
               Report an issue
             </Link>
+            {user && (
+              <Link
+                to="/feedback"
+                onClick={() => setOpen(false)}
+                className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-200 hover:bg-white/5"
+              >
+                <MessageSquare className="h-4 w-4" />
+                Feedback
+              </Link>
+            )}
 
             {user ? (
               <div className="mt-2 border-t border-white/10 pt-3">

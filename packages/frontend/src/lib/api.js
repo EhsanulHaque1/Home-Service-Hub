@@ -86,3 +86,11 @@ export function requestAccountDeletion() {
   return apiPost('/account/delete-request', {});
 }
 
+export function fetchFeedbacks() {
+  return apiGet('/feedback');
+}
+
+export function createFeedback(data) {
+  return apiPost('/feedback', data);
+}
+
