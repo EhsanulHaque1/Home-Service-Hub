@@ -4,6 +4,7 @@ use App\Http\Controllers\AccountController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\ComplaintController;
+use App\Http\Controllers\FeedbackController;
 use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\TaskApplicationController;
 use App\Http\Controllers\TaskController;
@@ -42,6 +43,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/chat/messages', [ChatController::class, 'store']);
     Route::put('/chat/messages/{message}', [ChatController::class, 'update']);
     Route::delete('/chat/messages/{message}', [ChatController::class, 'destroy']);
+});
+
+// Feedback routes (authenticated)
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/feedback', [FeedbackController::class, 'index']);
+    Route::post('/feedback', [FeedbackController::class, 'store']);
+    Route::get('/feedback/{feedback}', [FeedbackController::class, 'show']);
 });
 
 // Complaints routes
