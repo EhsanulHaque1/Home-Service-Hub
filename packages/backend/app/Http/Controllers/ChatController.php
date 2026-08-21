@@ -2,12 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Message;
-use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\DB;
 
 class ChatController extends Controller
 {
@@ -15,80 +13,83 @@ class ChatController extends Controller
     {
         $userId = Auth::id();
 
-        $conversations = Message::where('from_user_id', $userId)
-            ->orWhere('to_user_id', $userId)
-            ->orderBy('created_at', 'desc')
-            ->get()
-            ->groupBy(function ($message) use ($userId) {
-                return $message->from_user_id === $userId ? $message->to_user_id : $message->from_user_id;
-            })
-            ->map(function ($messages) {
-                $lastMessage = $messages->first();
-                $otherUserId = $lastMessage->from_user_id === Auth::id() ? $lastMessage->to_user_id : $lastMessage->from_user_id;
-                $otherUser = User::find($otherUserId);
+        $rows = DB::select(
+            "SELECT m.[id], m.[from_user_id], m.[to_user_id], m.[conversation], m.[created_at],
+                    u.[name] AS other_name, u.[role] AS other_role, u.[phone] AS other_phone, latest.other_user_id
+             FROM [messages] m
+             INNER JOIN (
+                 SELECT CASE WHEN [from_user_id] = $userId THEN [to_user_id] ELSE [from_user_id] END AS other_user_id,
+                        MAX([id]) AS max_id
+                 FROM [messages]
+                 WHERE [from_user_id] = $userId OR [to_user_id] = $userId
+                 GROUP BY CASE WHEN [from_user_id] = $userId THEN [to_user_id] ELSE [from_user_id] END
+             ) latest ON latest.max_id = m.[id]
+             LEFT JOIN [users] u ON u.[id] = latest.other_user_id
+             ORDER BY m.[created_at] DESC"
+        );
 
-                return [
-                    'user' => $otherUser ? [
-                        'id' => $otherUser->id,
-                        'name' => $otherUser->name,
-                        'role' => $otherUser->role,
-                        'phone' => $otherUser->phone,
-                    ] : null,
-                    'last_message' => $lastMessage->conversation,
-                    'last_message_at' => $lastMessage->created_at,
-                ];
-            })
-            ->values();
+        $conversations = array_map(function ($row) {
+            return [
+                'user' => $row->other_user_id ? [
+                    'id' => $row->other_user_id,
+                    'name' => $row->other_name,
+                    'role' => $row->other_role,
+                    'phone' => $row->other_phone,
+                ] : null,
+                'last_message' => $row->conversation,
+                'last_message_at' => $row->created_at,
+            ];
+        }, $rows);
 
         return response()->json([
             'conversations' => $conversations,
         ]);
     }
 
-    /**
-     * List users the current user can start a conversation with (excludes self).
-     */
     public function users(Request $request): JsonResponse
     {
         $userId = Auth::id();
 
-        $users = User::where('id', '!=', $userId)
-            ->orderBy('name')
-            ->get(['id', 'name', 'role', 'phone'])
-            ->map(function ($user) {
-                return [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                    'role' => $user->role,
-                    'phone' => $user->phone,
-                ];
-            });
+        $rows = DB::select(
+            "SELECT [id], [name], [role], [phone] FROM [users] WHERE [id] != $userId ORDER BY [name]"
+        );
+
+        $users = array_map(function ($row) {
+            return [
+                'id' => $row->id,
+                'name' => $row->name,
+                'role' => $row->role,
+                'phone' => $row->phone,
+            ];
+        }, $rows);
 
         return response()->json([
             'users' => $users,
         ]);
     }
 
-    public function messages(Request $request, User $user): JsonResponse
+    public function messages(Request $request, $user): JsonResponse
     {
         $userId = Auth::id();
 
-        $messages = Message::where(function ($query) use ($userId, $user) {
-            $query->where('from_user_id', $userId)->where('to_user_id', $user->id);
-        })->orWhere(function ($query) use ($userId, $user) {
-            $query->where('from_user_id', $user->id)->where('to_user_id', $userId);
-        })
-            ->orderBy('created_at', 'asc')
-            ->get(['id', 'from_user_id', 'to_user_id', 'conversation', 'created_at']);
+        $rows = DB::select(
+            "SELECT [id], [from_user_id], [to_user_id], [conversation], [created_at]
+             FROM [messages]
+             WHERE ([from_user_id] = $userId AND [to_user_id] = $user) OR ([from_user_id] = $user AND [to_user_id] = $userId)
+             ORDER BY [created_at] ASC"
+        );
+
+        $userRows = DB::select("SELECT [id], [name], [role], [phone] FROM [users] WHERE [id] = $user");
+        $other = $userRows[0] ?? null;
 
         return response()->json([
-            'messages' => $messages,
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'role' => $user->role,
-                'phone' => $user->phone,
-            ],
+            'messages' => $rows,
+            'user' => $other ? [
+                'id' => $other->id,
+                'name' => $other->name,
+                'role' => $other->role,
+                'phone' => $other->phone,
+            ] : null,
         ]);
     }
 
@@ -96,58 +97,68 @@ class ChatController extends Controller
     {
         $userId = Auth::id();
 
-        $validated = $request->validate([
-            'to_user_id' => ['required', 'integer', 'exists:users,id', 'not_in:' . $userId],
-            'conversation' => ['required', 'string', 'max:2000'],
-        ]);
+        $toUserId = (int) $request->input('to_user_id');
+        $conversation = $request->input('conversation');
 
-        $message = Message::create([
-            'from_user_id' => $userId,
-            'to_user_id' => $validated['to_user_id'],
-            'conversation' => $validated['conversation'],
-            'created_at' => now(),
-        ]);
+        DB::insert(
+            "INSERT INTO [messages] ([from_user_id], [to_user_id], [conversation], [created_at], [updated_at])
+             VALUES ($userId, $toUserId, '$conversation', GETDATE(), GETDATE())"
+        );
+
+        $id = DB::getPdo()->lastInsertId();
+        $rows = DB::select("SELECT * FROM [messages] WHERE [id] = $id");
 
         return response()->json([
             'message' => 'Message sent successfully.',
-            'data' => $message,
+            'data' => $rows[0] ?? null,
         ], 201);
     }
 
-    /**
-     * Edit a message. Only the original sender may edit it.
-     */
-    public function update(Request $request, Message $message): JsonResponse
+    public function update(Request $request, $message): JsonResponse
     {
-        if ($message->from_user_id !== Auth::id()) {
+        $userId = Auth::id();
+
+        $rows = DB::select("SELECT * FROM [messages] WHERE [id] = $message");
+        $msgRow = $rows[0] ?? null;
+
+        if (!$msgRow) {
+            return response()->json(['message' => 'Message not found.'], 404);
+        }
+
+        if ($msgRow->from_user_id != $userId) {
             return response()->json(['message' => 'You can only edit your own messages.'], 403);
         }
 
-        $validated = $request->validate([
-            'conversation' => ['required', 'string', 'max:2000'],
-        ]);
+        $conversation = $request->input('conversation');
 
-        $message->update([
-            'conversation' => $validated['conversation'],
-            'updated_at' => now(),
-        ]);
+        DB::update(
+            "UPDATE [messages] SET [conversation] = '$conversation', [updated_at] = GETDATE() WHERE [id] = $message"
+        );
+
+        $rows = DB::select("SELECT * FROM [messages] WHERE [id] = $message");
 
         return response()->json([
             'message' => 'Message updated.',
-            'data' => $message,
+            'data' => $rows[0] ?? null,
         ]);
     }
 
-    /**
-     * Delete a message. Only the original sender may delete it.
-     */
-    public function destroy(Request $request, Message $message): JsonResponse
+    public function destroy(Request $request, $message): JsonResponse
     {
-        if ($message->from_user_id !== Auth::id()) {
+        $userId = Auth::id();
+
+        $rows = DB::select("SELECT * FROM [messages] WHERE [id] = $message");
+        $msgRow = $rows[0] ?? null;
+
+        if (!$msgRow) {
+            return response()->json(['message' => 'Message not found.'], 404);
+        }
+
+        if ($msgRow->from_user_id != $userId) {
             return response()->json(['message' => 'You can only delete your own messages.'], 403);
         }
 
-        $message->delete();
+        DB::delete("DELETE FROM [messages] WHERE [id] = $message");
 
         return response()->json(['message' => 'Message deleted.']);
     }

@@ -2,122 +2,205 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Task;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class TaskController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Task::query()->latest();
+        $page = max(1, (int) $request->input('page', 1));
+        $perPage = 15;
+        $offset = ($page - 1) * $perPage;
+
+        $conditions = '1=1';
 
         if ($request->filled('category')) {
             $categories = array_filter(explode(',', (string) $request->string('category')));
-            $query->whereIn('category', $categories);
+            $quoted = array_map(function ($c) {
+                return "'" . $c . "'";
+            }, $categories);
+            if (!empty($quoted)) {
+                $conditions .= ' AND [category] IN (' . implode(',', $quoted) . ')';
+            }
         }
 
         if ($request->filled('status')) {
-            $query->where('status', $request->string('status'));
+            $status = $request->string('status');
+            $conditions .= " AND [status] = '$status'";
         }
 
-        return $query->with('user:id,name')->paginate(15);
+        $totalRow = DB::select("SELECT COUNT(*) AS total FROM [tasks] WHERE $conditions");
+        $total = $totalRow[0]->total ?? 0;
+
+        $rows = DB::select(
+            "SELECT * FROM [tasks] WHERE $conditions ORDER BY [created_at] DESC OFFSET $offset ROWS FETCH NEXT $perPage ROWS ONLY"
+        );
+
+        return response()->json([
+            'data' => $rows,
+            'current_page' => $page,
+            'per_page' => $perPage,
+            'total' => $total,
+        ]);
     }
 
-    public function show(Task $task)
+    public function show(Request $request, $task)
     {
-        return $task;
+        $rows = DB::select("SELECT * FROM [tasks] WHERE [id] = $task");
+        $taskRow = $rows[0] ?? null;
+
+        if (!$taskRow) {
+            return response()->json(['message' => 'Task not found.'], 404);
+        }
+
+        return response()->json($taskRow);
     }
 
     public function store(Request $request)
     {
-        $validated = $request->validate($this->taskRules());
+        $userId = $request->user()?->id;
+        $userIdSql = $userId === null ? 'NULL' : $userId;
 
-        // Attach the task to the signed-in client so it shows up on their dashboard.
-        // Posting still works for guests, who just won't have a "my tasks" view.
-        $validated['user_id'] = $request->user()?->id;
+        $title = $request->input('title');
+        $description = $request->input('description');
+        $category = $request->input('category');
+        $budget = (float) $request->input('budget', 0);
+        $location = $request->input('location');
+        $clientName = $request->input('client_name');
+        $clientEmail = $request->input('client_email');
 
-        $task = Task::create($validated);
+        DB::insert(
+            "INSERT INTO [tasks] ([user_id], [title], [description], [category], [budget], [location], [status], [client_name], [client_email], [created_at], [updated_at])
+             VALUES ($userIdSql, '$title', '$description', '$category', $budget, '$location', 'open', '$clientName', '$clientEmail', GETDATE(), GETDATE())"
+        );
 
-        return response()->json($task, 201);
+        $id = DB::getPdo()->lastInsertId();
+        $rows = DB::select("SELECT * FROM [tasks] WHERE [id] = $id");
+
+        return response()->json($rows[0] ?? null, 201);
     }
 
-    /**
-     * Update a task's own details. Only the client who posted it may edit it,
-     * and only before a worker has been confirmed for it.
-     */
-    public function update(Request $request, Task $task)
+    public function update(Request $request, $task)
     {
-        if ($task->user_id !== $request->user()->id) {
+        $rows = DB::select("SELECT * FROM [tasks] WHERE [id] = $task");
+        $taskRow = $rows[0] ?? null;
+
+        if (!$taskRow) {
+            return response()->json(['message' => 'Task not found.'], 404);
+        }
+
+        if ($taskRow->user_id != $request->user()->id) {
             return response()->json(['message' => 'You can only edit your own tasks.'], 403);
         }
 
-        if (in_array($task->status, ['assigned', 'completed'], true)) {
+        if (in_array($taskRow->status, ['assigned', 'completed'], true)) {
             return response()->json(['message' => 'This task can no longer be edited.'], 422);
         }
 
-        $validated = $request->validate($this->taskRules());
+        $title = $request->input('title');
+        $description = $request->input('description');
+        $category = $request->input('category');
+        $budget = (float) $request->input('budget', 0);
+        $location = $request->input('location');
+        $clientName = $request->input('client_name');
+        $clientEmail = $request->input('client_email');
 
-        $task->update($validated);
+        DB::update(
+            "UPDATE [tasks] SET [title] = '$title', [description] = '$description', [category] = '$category', [budget] = $budget, [location] = '$location', [client_name] = '$clientName', [client_email] = '$clientEmail', [updated_at] = GETDATE() WHERE [id] = $task"
+        );
 
-        return $task->fresh();
+        $rows = DB::select("SELECT * FROM [tasks] WHERE [id] = $task");
+
+        return response()->json($rows[0] ?? null);
     }
 
-    /**
-     * Delete a task. Only the owning client may delete it, and only before a
-     * worker has been confirmed for it.
-     */
-    public function destroy(Request $request, Task $task)
+    public function destroy(Request $request, $task)
     {
-        if ($task->user_id !== $request->user()->id) {
+        $rows = DB::select("SELECT * FROM [tasks] WHERE [id] = $task");
+        $taskRow = $rows[0] ?? null;
+
+        if (!$taskRow) {
+            return response()->json(['message' => 'Task not found.'], 404);
+        }
+
+        if ($taskRow->user_id != $request->user()->id) {
             return response()->json(['message' => 'You can only delete your own tasks.'], 403);
         }
 
-        if (in_array($task->status, ['assigned', 'completed'], true)) {
+        if (in_array($taskRow->status, ['assigned', 'completed'], true)) {
             return response()->json(['message' => 'This task can no longer be deleted.'], 422);
         }
 
-        $task->delete();
+        DB::delete("DELETE FROM [tasks] WHERE [id] = $task");
 
         return response()->json(['message' => 'Task deleted.']);
     }
 
-    /**
-     * List the applicants for one of the authenticated client's own tasks.
-     */
-    public function applicants(Request $request, Task $task)
+    public function applicants(Request $request, $task)
     {
-        if ($task->user_id !== $request->user()->id) {
+        $rows = DB::select("SELECT * FROM [tasks] WHERE [id] = $task");
+        $taskRow = $rows[0] ?? null;
+
+        if (!$taskRow) {
+            return response()->json(['message' => 'Task not found.'], 404);
+        }
+
+        if ($taskRow->user_id != $request->user()->id) {
             return response()->json(['message' => 'You can only view applicants for your own tasks.'], 403);
         }
 
-        return $task->applications()
-            ->with('user:id,name,expertise,location,phone')
-            ->latest()
-            ->get();
+        $rows = DB::select(
+            "SELECT ta.*, u.[id] AS u_id, u.[name] AS u_name, u.[expertise] AS u_expertise, u.[location] AS u_location, u.[phone] AS u_phone
+             FROM [task_applications] ta
+             LEFT JOIN [users] u ON u.[id] = ta.[user_id]
+             WHERE ta.[task_id] = $task
+             ORDER BY ta.[created_at] DESC"
+        );
+
+        $applicants = array_map(function ($row) {
+            $expertise = [];
+            if (!empty($row->u_expertise)) {
+                $decoded = json_decode($row->u_expertise, true);
+                $expertise = is_array($decoded) ? $decoded : [];
+            }
+
+            $user = $row->u_id ? (object) [
+                'id' => $row->u_id,
+                'name' => $row->u_name,
+                'expertise' => $expertise,
+                'location' => $row->u_location,
+                'phone' => $row->u_phone,
+            ] : null;
+
+            return (object) [
+                'id' => $row->id,
+                'task_id' => $row->task_id,
+                'user_id' => $row->user_id,
+                'message' => $row->message,
+                'status' => $row->status,
+                'created_at' => $row->created_at,
+                'updated_at' => $row->updated_at,
+                'user' => $user,
+            ];
+        }, $rows);
+
+        return response()->json($applicants);
     }
 
-    /**
-     * Tasks posted by the authenticated client, with how many workers applied to each.
-     */
     public function myTasks(Request $request)
     {
-        return Task::where('user_id', $request->user()->id)
-            ->withCount('applications')
-            ->with('assignedWorker:id,name,expertise,location,phone')
-            ->latest()
-            ->get();
-    }
+        $userId = $request->user()->id;
 
-    private function taskRules(): array
-    {
-        return [
-            'title' => ['required', 'string', 'max:255'],
-            'description' => ['required', 'string', 'min:10', 'max:2000'],
-            'category' => ['required', 'string', 'in:' . implode(',', Task::CATEGORIES)],
-            'budget' => ['required', 'numeric', 'min:1', 'max:100000'],
-            'location' => ['required', 'string', 'max:255'],
-            'client_name' => ['required', 'string', 'max:255'],
-            'client_email' => ['required', 'email', 'max:255'],
-        ];
+        $tasks = DB::select(
+            "SELECT t.*, (SELECT COUNT(*) FROM [task_applications] ta WHERE ta.[task_id] = t.[id]) AS applications_count,
+                    u.[name] AS assigned_worker_name, u.[expertise] AS assigned_worker_expertise, u.[location] AS assigned_worker_location, u.[phone] AS assigned_worker_phone
+             FROM [tasks] t
+             LEFT JOIN [users] u ON u.[id] = t.[assigned_worker_id]
+             WHERE t.[user_id] = $userId
+             ORDER BY t.[created_at] DESC"
+        );
+
+        return response()->json($tasks);
     }
 }

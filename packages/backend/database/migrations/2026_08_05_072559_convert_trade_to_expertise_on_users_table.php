@@ -13,7 +13,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->json('expertise')->nullable()->after('trade');
+            $table->json('expertise')->nullable();
         });
 
         // A worker could only have one trade before; carry it over as a one-item list.
@@ -38,7 +38,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->string('trade')->nullable()->after('location');
+            $table->string('trade')->nullable();
         });
 
         DB::table('users')

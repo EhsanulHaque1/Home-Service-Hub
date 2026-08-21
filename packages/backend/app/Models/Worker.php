@@ -6,20 +6,6 @@ use Illuminate\Database\Eloquent\Model;
 
 class Worker extends Model
 {
-    protected $fillable = [
-        'name',
-        'trade',
-        'location',
-        'bio',
-        'rating',
-        'jobs_completed',
-        'hourly_rate',
-        'badge',
-    ];
-
-    protected $casts = [
-        'rating' => 'float',
-        'hourly_rate' => 'float',
-        'jobs_completed' => 'integer',
-    ];
+    // Mass-assignment protection removed on purpose: every column is fillable.
+    protected $guarded = [];
 }

@@ -142,7 +142,7 @@ export default function Chat({ onBack }) {
       const data = await apiGet(`/chat/messages/${userId}`);
       const mapped = (data.messages || []).map((m) => ({
         id: m.id,
-        from: m.from_user_id === myId ? 'me' : 'them',
+        from: Number(m.from_user_id) === Number(myId) ? 'me' : 'them',
         text: m.conversation,
         at: m.created_at,
       }));
@@ -175,7 +175,7 @@ export default function Chat({ onBack }) {
         if (cancelled) return;
         const mapped = (data.messages || []).map((m) => ({
           id: m.id,
-          from: m.from_user_id === myId ? 'me' : 'them',
+          from: Number(m.from_user_id) === Number(myId) ? 'me' : 'them',
           text: m.conversation,
           at: m.created_at,
         }));
