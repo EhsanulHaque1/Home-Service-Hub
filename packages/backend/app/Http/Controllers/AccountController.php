@@ -3,9 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Mail\WelcomeEmail;
-use App\Models\Message;
-use App\Models\Task;
-use App\Models\TaskApplication;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -17,9 +14,6 @@ use Illuminate\Support\Facades\URL;
 
 class AccountController extends Controller
 {
-    /**
-     * Clear all session state and set expired headers to wipe session/auth cookies.
-     */
     private function clearCookies(JsonResponse $response, Request $request): JsonResponse
     {
         Auth::guard('web')->logout();
@@ -38,9 +32,6 @@ class AccountController extends Controller
             ->withCookie(cookie()->forget('XSRF-TOKEN', $cookiePath, $cookieDomain));
     }
 
-    /**
-     * Send email verification link for deleting the authenticated user's account.
-     */
     public function requestDeletion(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -49,7 +40,6 @@ class AccountController extends Controller
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
-        // Generate temporary signed URL valid for 60 minutes
         $deleteUrl = URL::temporarySignedRoute(
             'account.delete.verify',
             now()->addMinutes(60),
@@ -77,22 +67,19 @@ class AccountController extends Controller
         ]);
     }
 
-    /**
-     * Handle the signed email verification link callback for account deletion.
-     * Deletes user records, clears session cookies, and redirects to frontend sign-in.
-     */
     public function verifyAndDelete(Request $request, $id, $hash): RedirectResponse
     {
         $frontendConfig = env('FRONTEND_URLS', 'http://localhost:5173');
         $frontendUrl = explode(',', $frontendConfig)[0] ?? 'http://localhost:5173';
 
-        $user = User::find($id);
+        $rows = DB::select("SELECT * FROM [users] WHERE [id] = $id");
+        $userRow = $rows[0] ?? null;
 
-        if (!$user) {
+        if (!$userRow) {
             return redirect()->to("{$frontendUrl}/sign-in?account_deleted=1");
         }
 
-        if (!hash_equals((string) $hash, sha1($user->getEmailForVerification()))) {
+        if (!hash_equals((string) $hash, sha1(strtolower(trim($userRow->email))))) {
             return redirect()->to("{$frontendUrl}/sign-in?error=invalid_hash");
         }
 
@@ -100,58 +87,45 @@ class AccountController extends Controller
             return redirect()->to("{$frontendUrl}/sign-in?error=invalid_signature");
         }
 
+        $userId = $id;
+        $userEmail = $userRow->email;
+
         try {
-            DB::transaction(function () use ($user) {
-                $userId = $user->getKey();
-                $userEmail = $user->email;
+            DB::beginTransaction();
 
-                // 1. Delete task applications made by this user (user_id column)
-                DB::table('task_applications')->where('user_id', $userId)->delete();
+            // 1. Delete task applications made by this user (user_id column)
+            DB::delete("DELETE FROM [task_applications] WHERE [user_id] = $userId");
 
-                // 2. Unassign this user from any assigned tasks
-                DB::table('tasks')->where('assigned_worker_id', $userId)->update(['assigned_worker_id' => null]);
+            // 2. Unassign this user from any assigned tasks
+            DB::update("UPDATE [tasks] SET [assigned_worker_id] = NULL WHERE [assigned_worker_id] = $userId");
 
-                // 3. Delete task applications for tasks posted by this user
-                $userTaskIds = DB::table('tasks')->where('user_id', $userId)->pluck('id');
-                if ($userTaskIds->isNotEmpty()) {
-                    DB::table('task_applications')->whereIn('task_id', $userTaskIds)->delete();
-                }
+            // 3. Delete task applications for tasks posted by this user
+            DB::delete("DELETE FROM [task_applications] WHERE [task_id] IN (SELECT [id] FROM [tasks] WHERE [user_id] = $userId)");
 
-                // 4. Delete tasks created by this user
-                DB::table('tasks')->where('user_id', $userId)->delete();
+            // 4. Delete tasks created by this user
+            DB::delete("DELETE FROM [tasks] WHERE [user_id] = $userId");
 
-                // 5. Delete chat messages (from_user_id & to_user_id columns)
-                DB::table('messages')
-                    ->where('from_user_id', $userId)
-                    ->orWhere('to_user_id', $userId)
-                    ->delete();
+            // 5. Delete chat messages (from_user_id & to_user_id columns)
+            DB::delete("DELETE FROM [messages] WHERE [from_user_id] = $userId OR [to_user_id] = $userId");
 
-                // 6. Delete tokens & password resets
-                DB::table('password_reset_tokens')->where('email', $userEmail)->delete();
+            // 6. Delete tokens & password resets
+            DB::delete("DELETE FROM [password_reset_tokens] WHERE [email] = '$userEmail'");
 
-                // 7. Delete all database sessions for this user
-                DB::table('sessions')->where('user_id', $userId)->delete();
+            // 7. Delete all database sessions for this user
+            DB::delete("DELETE FROM [sessions] WHERE [user_id] = $userId");
 
-                // 8. Delete personal access tokens
-                DB::table('personal_access_tokens')
-                    ->where('tokenable_type', User::class)
-                    ->where('tokenable_id', $userId)
-                    ->delete();
+            // 8. Delete personal access tokens
+            DB::delete("DELETE FROM [personal_access_tokens] WHERE [tokenable_type] = '" . User::class . "' AND [tokenable_id] = $userId");
 
-                // 9. Completely delete user record from users table
-                DB::table('users')->where('id', $userId)->delete();
-            });
+            // 9. Completely delete user record from users table
+            DB::delete("DELETE FROM [users] WHERE [id] = $userId");
+
+            DB::commit();
         } catch (\Throwable $e) {
+            DB::rollBack();
             \Illuminate\Support\Facades\Log::error('Account deletion transaction failed: ' . $e->getMessage());
-            // Fallback direct delete on users table
-            try {
-                DB::table('users')->where('id', $user->id)->delete();
-            } catch (\Throwable $ex) {
-                \Illuminate\Support\Facades\Log::error('Fallback direct user delete failed: ' . $ex->getMessage());
-            }
         }
 
-        // Log out user, flush & invalidate session
         Auth::guard('web')->logout();
         if ($request->hasSession()) {
             $request->session()->flush();

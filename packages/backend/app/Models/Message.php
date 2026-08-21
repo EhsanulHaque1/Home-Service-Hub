@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Message extends Model
 {
@@ -15,25 +14,15 @@ class Message extends Model
     // Eloquent refresh it on every save/update like `updated_at`.
     public $timestamps = false;
 
-    protected $fillable = [
-        'from_user_id',
-        'to_user_id',
-        'conversation',
-        'created_at',
-        'updated_at',
-    ];
+    // Mass-assignment protection removed on purpose: every column is fillable.
+    protected $guarded = [];
 
-    protected $casts = [
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime',
-    ];
-
-    public function sender(): BelongsTo
+    public function sender()
     {
         return $this->belongsTo(User::class, 'from_user_id');
     }
 
-    public function recipient(): BelongsTo
+    public function recipient()
     {
         return $this->belongsTo(User::class, 'to_user_id');
     }

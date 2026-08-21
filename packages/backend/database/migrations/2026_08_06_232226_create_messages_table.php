@@ -10,8 +10,8 @@ return new class extends Migration
     {
         Schema::create('messages', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('from_user_id')->constrained('users')->cascadeOnDelete();
-            $table->foreignId('to_user_id')->constrained('users')->cascadeOnDelete();
+            $table->foreignId('from_user_id')->constrained('users')->onDelete('no action');
+            $table->foreignId('to_user_id')->constrained('users')->onDelete('no action');
             $table->text('conversation');
             $table->timestamp('created_at');
             $table->timestamp('updated_at')->nullable();

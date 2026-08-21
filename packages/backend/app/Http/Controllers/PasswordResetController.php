@@ -16,9 +16,17 @@ use Illuminate\Support\Str;
 
 class PasswordResetController extends Controller
 {
-    /**
-     * Clear all session state and set expired headers to wipe session/auth cookies.
-     */
+    private function hydrateUser($row): User
+    {
+        $user = new User();
+        foreach ((array) $row as $key => $value) {
+            $user->$key = $value;
+        }
+        $user->exists = true;
+
+        return $user;
+    }
+
     private function clearCookies(JsonResponse $response, Request $request): JsonResponse
     {
         Auth::guard('web')->logout();
@@ -37,35 +45,30 @@ class PasswordResetController extends Controller
             ->withCookie(cookie()->forget('XSRF-TOKEN', $cookiePath, $cookieDomain));
     }
 
-    /**
-     * Send email verification link for resetting password.
-     */
     public function sendResetLink(Request $request): JsonResponse
     {
-        $validated = $request->validate([
-            'email' => ['required', 'string', 'email'],
-        ]);
+        $email = $request->input('email');
 
-        $user = User::where('email', $validated['email'])->first();
+        $rows = DB::select("SELECT * FROM [users] WHERE [email] = '$email'");
+        $userRow = $rows[0] ?? null;
 
-        if (!$user) {
+        if (!$userRow) {
             return response()->json([
                 'message' => 'If an account exists for this email, a password reset link has been sent.',
             ]);
         }
 
-        // Generate temporary signed URL valid for 60 minutes
         $resetUrl = URL::temporarySignedRoute(
             'password.reset.verify',
             now()->addMinutes(60),
             [
-                'id' => $user->getKey(),
-                'hash' => sha1($user->getEmailForVerification()),
+                'id' => $userRow->id,
+                'hash' => sha1(strtolower(trim($userRow->email))),
             ]
         );
 
         try {
-            Mail::to($user->email)->send(new WelcomeEmail(
+            Mail::to($userRow->email)->send(new WelcomeEmail(
                 'We received a request to reset your password for Home Service Hub. Please click the button below to verify your email and set a new password.',
                 'Reset Your Password - Home Service Hub',
                 $resetUrl,
@@ -82,22 +85,19 @@ class PasswordResetController extends Controller
         ]);
     }
 
-    /**
-     * Handle the signed email verification link callback for password reset.
-     * Generates a reset token and redirects the user to the frontend reset password form.
-     */
     public function verify(Request $request, $id, $hash): RedirectResponse
     {
         $frontendConfig = env('FRONTEND_URLS', 'http://localhost:5173');
         $frontendUrl = explode(',', $frontendConfig)[0] ?? 'http://localhost:5173';
 
-        $user = User::find($id);
+        $rows = DB::select("SELECT * FROM [users] WHERE [id] = $id");
+        $userRow = $rows[0] ?? null;
 
-        if (!$user) {
+        if (!$userRow) {
             return redirect()->to("{$frontendUrl}/sign-in?error=invalid_user");
         }
 
-        if (!hash_equals((string) $hash, sha1($user->getEmailForVerification()))) {
+        if (!hash_equals((string) $hash, sha1(strtolower(trim($userRow->email))))) {
             return redirect()->to("{$frontendUrl}/sign-in?error=invalid_hash");
         }
 
@@ -105,38 +105,27 @@ class PasswordResetController extends Controller
             return redirect()->to("{$frontendUrl}/sign-in?error=invalid_signature");
         }
 
-        // Create or update a secure reset token
         $token = Str::random(64);
-        $userEmail = strtolower(trim($user->email));
+        $userEmail = strtolower(trim($userRow->email));
 
-        DB::table('password_reset_tokens')->updateOrInsert(
-            ['email' => $userEmail],
-            [
-                'token' => Hash::make($token),
-                'created_at' => now(),
-            ]
+        DB::delete("DELETE FROM [password_reset_tokens] WHERE [email] = '$userEmail'");
+        DB::insert(
+            "INSERT INTO [password_reset_tokens] ([email], [token], [created_at])
+             VALUES ('$userEmail', '" . Hash::make($token) . "', GETDATE())"
         );
 
         $encodedEmail = urlencode($userEmail);
         return redirect()->to("{$frontendUrl}/reset-password?email={$encodedEmail}&token={$token}");
     }
 
-    /**
-     * Complete password reset using verified token and new password.
-     */
     public function resetPassword(Request $request): JsonResponse
     {
-        $validated = $request->validate([
-            'email' => ['required', 'string', 'email'],
-            'token' => ['required', 'string'],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
-        ]);
+        $email = strtolower(trim((string) $request->input('email')));
+        $token = $request->input('token');
+        $password = $request->input('password');
 
-        $email = strtolower(trim($validated['email']));
-
-        $record = DB::table('password_reset_tokens')
-            ->where('email', $email)
-            ->first();
+        $records = DB::select("SELECT * FROM [password_reset_tokens] WHERE [email] = '$email'");
+        $record = $records[0] ?? null;
 
         if (!$record) {
             return response()->json([
@@ -144,44 +133,44 @@ class PasswordResetController extends Controller
             ], 422);
         }
 
-        // Verify token expiry (60 minutes)
         if ($record->created_at && now()->diffInMinutes($record->created_at) > 60) {
-            DB::table('password_reset_tokens')->where('email', $validated['email'])->delete();
+            DB::delete("DELETE FROM [password_reset_tokens] WHERE [email] = '$email'");
             return response()->json([
                 'message' => 'Password reset link has expired. Please request a new link.',
             ], 422);
         }
 
-        if (!Hash::check($validated['token'], $record->token)) {
+        if (!Hash::check($token, $record->token)) {
             return response()->json([
                 'message' => 'Invalid reset token. Please request a new link.',
             ], 422);
         }
 
-        $user = User::where('email', $validated['email'])->first();
-        if (!$user) {
+        $userRows = DB::select("SELECT * FROM [users] WHERE [email] = '$email'");
+        $userRow = $userRows[0] ?? null;
+
+        if (!$userRow) {
             return response()->json([
                 'message' => 'User not found.',
             ], 404);
         }
 
-        // Update password and mark email verified if it wasn't already
-        $user->password = Hash::make($validated['password']);
-        if (!$user->hasVerifiedEmail()) {
-            $user->markEmailAsVerified();
+        $hashed = Hash::make($password);
+        DB::update("UPDATE [users] SET [password] = '$hashed', [updated_at] = GETDATE() WHERE [id] = $userRow->id");
+
+        if (!$userRow->email_verified_at) {
+            DB::update("UPDATE [users] SET [email_verified_at] = GETDATE(), [updated_at] = GETDATE() WHERE [id] = $userRow->id");
         }
-        $user->save();
 
-        // Clear the reset token
-        DB::table('password_reset_tokens')->where('email', $email)->delete();
+        DB::delete("DELETE FROM [password_reset_tokens] WHERE [email] = '$email'");
 
-        // Automatically log in the user and keep authentication active
+        $user = $this->hydrateUser($userRow);
         Auth::guard('web')->login($user, true);
         $request->session()->regenerate();
 
         return response()->json([
             'message' => 'Password has been reset successfully! You are now logged in.',
-            'user' => $user->fresh(),
+            'user' => $user,
         ]);
     }
 }

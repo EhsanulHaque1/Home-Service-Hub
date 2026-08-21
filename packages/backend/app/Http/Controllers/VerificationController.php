@@ -4,19 +4,27 @@ namespace App\Http\Controllers;
 
 use App\Mail\WelcomeEmail;
 use App\Models\User;
-use Illuminate\Auth\Events\Verified;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\URL;
 
 class VerificationController extends Controller
 {
-    /**
-     * Clear all session state and set expired headers to wipe session/auth cookies from client browser.
-     */
+    private function hydrateUser($row): User
+    {
+        $user = new User();
+        foreach ((array) $row as $key => $value) {
+            $user->$key = $value;
+        }
+        $user->exists = true;
+
+        return $user;
+    }
+
     private function clearCookies(JsonResponse $response, Request $request): JsonResponse
     {
         Auth::guard('web')->logout();
@@ -35,22 +43,19 @@ class VerificationController extends Controller
             ->withCookie(cookie()->forget('XSRF-TOKEN', $cookiePath, $cookieDomain));
     }
 
-    /**
-     * Mark the user's email address as verified when clicking the signed URL,
-     * log the user in automatically, and redirect to the signed-in home page.
-     */
     public function verify(Request $request, $id, $hash): RedirectResponse
     {
         $frontendConfig = env('FRONTEND_URLS', 'http://localhost:5173');
         $frontendUrl = explode(',', $frontendConfig)[0] ?? 'http://localhost:5173';
 
-        $user = User::find($id);
+        $rows = DB::select("SELECT * FROM [users] WHERE [id] = $id");
+        $userRow = $rows[0] ?? null;
 
-        if (!$user) {
+        if (!$userRow) {
             return redirect()->to("{$frontendUrl}/sign-in?error=invalid_user");
         }
 
-        if (!hash_equals((string) $hash, sha1($user->getEmailForVerification()))) {
+        if (!hash_equals((string) $hash, sha1(strtolower(trim($userRow->email))))) {
             return redirect()->to("{$frontendUrl}/sign-in?error=invalid_hash");
         }
 
@@ -58,33 +63,25 @@ class VerificationController extends Controller
             return redirect()->to("{$frontendUrl}/sign-in?error=invalid_signature");
         }
 
-        if (!$user->hasVerifiedEmail()) {
-            if ($user->markEmailAsVerified()) {
-                event(new Verified($user));
-            }
+        if (!$userRow->email_verified_at) {
+            DB::update("UPDATE [users] SET [email_verified_at] = GETDATE(), [updated_at] = GETDATE() WHERE [id] = $id");
         }
 
-        // Automatically log in the user ONLY after successful email verification
+        $user = $this->hydrateUser($userRow);
         Auth::login($user);
         $request->session()->regenerate();
 
-        // Redirect directly to the signed-in home page
         return redirect()->to("{$frontendUrl}/?verified=1");
     }
 
-    /**
-     * Resend the email verification notification.
-     * Enforces NO cookie issuance during unverified resend request.
-     */
     public function resend(Request $request): JsonResponse
     {
-        $validated = $request->validate([
-            'email' => ['required', 'string', 'email'],
-        ]);
+        $email = $request->input('email');
 
-        $user = User::where('email', $validated['email'])->first();
+        $rows = DB::select("SELECT * FROM [users] WHERE [email] = '$email'");
+        $userRow = $rows[0] ?? null;
 
-        if (!$user) {
+        if (!$userRow) {
             return $this->clearCookies(
                 response()->json([
                     'message' => 'If an account exists for this email, a verification link has been sent.',
@@ -93,7 +90,7 @@ class VerificationController extends Controller
             );
         }
 
-        if ($user->hasVerifiedEmail()) {
+        if ($userRow->email_verified_at) {
             return response()->json([
                 'message' => 'Email address is already verified. You can log in.',
             ]);
@@ -103,13 +100,13 @@ class VerificationController extends Controller
             'verification.verify',
             now()->addMinutes(60),
             [
-                'id' => $user->getKey(),
-                'hash' => sha1($user->getEmailForVerification()),
+                'id' => $userRow->id,
+                'hash' => sha1(strtolower(trim($userRow->email))),
             ]
         );
 
         try {
-            Mail::to($user->email)->send(new WelcomeEmail(
+            Mail::to($userRow->email)->send(new WelcomeEmail(
                 'Please click the button below to verify your email address and activate your Home Service Hub account.',
                 'Verify Your Email Address - Home Service Hub',
                 $verificationUrl

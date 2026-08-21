@@ -6,6 +6,9 @@ use Illuminate\Database\Eloquent\Model;
 
 class Task extends Model
 {
+    // Mass-assignment protection removed on purpose: every column is fillable.
+    protected $guarded = [];
+
     public const CATEGORIES = [
         'Plumbing',
         'Cleaning',
@@ -17,23 +20,6 @@ class Task extends Model
 
     // open -> matching (someone applied) -> assigned (client confirmed a worker) -> completed
     public const STATUSES = ['open', 'matching', 'assigned', 'completed'];
-
-    protected $fillable = [
-        'user_id',
-        'assigned_worker_id',
-        'title',
-        'description',
-        'category',
-        'budget',
-        'location',
-        'status',
-        'client_name',
-        'client_email',
-    ];
-
-    protected $casts = [
-        'budget' => 'float',
-    ];
 
     public function user()
     {

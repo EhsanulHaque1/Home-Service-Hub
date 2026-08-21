@@ -6,14 +6,10 @@ use Illuminate\Database\Eloquent\Model;
 
 class TaskApplication extends Model
 {
-    public const STATUSES = ['pending', 'accepted', 'declined'];
+    // Mass-assignment protection removed on purpose: every column is fillable.
+    protected $guarded = [];
 
-    protected $fillable = [
-        'task_id',
-        'user_id',
-        'message',
-        'status',
-    ];
+    public const STATUSES = ['pending', 'accepted', 'declined'];
 
     public function task()
     {

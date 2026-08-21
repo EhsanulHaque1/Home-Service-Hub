@@ -6,13 +6,6 @@ use Illuminate\Database\Eloquent\Model;
 
 class Complaint extends Model
 {
-    protected $fillable = [
-        'client_name',
-        'client_email',
-        'worker_name',
-        'worker_email',
-        'category',
-        'description',
-        'status',
-    ];
+    // Mass-assignment protection removed on purpose: every column is fillable.
+    protected $guarded = [];
 }

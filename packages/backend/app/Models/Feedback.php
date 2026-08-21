@@ -3,26 +3,15 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Feedback extends Model
 {
+    // Mass-assignment protection removed on purpose: every column is fillable.
+    protected $guarded = [];
+
     protected $table = 'feedback';
 
-    protected $fillable = [
-        'user_id',
-        'category',
-        'message',
-        'status',
-    ];
-
-    protected $casts = [
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime',
-        'category' => 'string',
-    ];
-
-    public function user(): BelongsTo
+    public function user()
     {
         return $this->belongsTo(User::class);
     }
