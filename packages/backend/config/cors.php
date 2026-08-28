@@ -19,9 +19,12 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => explode(',', env('FRONTEND_URLS', 'http://localhost:5173')),
+    'allowed_origins' => ['*'],
 
-    'allowed_origins_patterns' => ['#^http://localhost:\d+$#'],
+    'allowed_origins_patterns' => [
+        '#^https?://(localhost|127\.0\.0\.1)(:\d+)?$#',
+        '#^http://localhost:\d+$#',
+    ],
 
     'allowed_headers' => ['*'],
 

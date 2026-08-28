@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import {
   ClipboardList,
@@ -21,9 +22,11 @@ import {
   Phone,
   BadgeCheck,
   MessageSquare,
+  Info,
+  Wallet,
 } from 'lucide-react';
 import PageShell from '@/components/PageShell';
-import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api';
+import { apiGet, apiPost, apiPut, apiDelete, advanceProgress, completeTask } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import {
   CATEGORIES,
@@ -35,6 +38,134 @@ import {
   initials,
   formatRelativeTime,
 } from '@/lib/marketplace';
+
+// Progress stages shown in the Status mini-window.
+const STATUS_FLOW = [
+  { key: 'arriving', label: 'Arriving at the task place' },
+  { key: 'starting', label: 'Starting the work' },
+  { key: 'completing', label: 'Completing the work' },
+  { key: 'finished', label: 'The task is finished' },
+];
+
+function completedSteps(taskStatus) {
+  if (taskStatus === 'completed') return 4;
+  if (taskStatus === 'assigned') return 2;
+  return 0;
+}
+
+// Order of progress labels stored in tasks.progress ('' = not started).
+const PROGRESS_ORDER = ['', 'Arriving at the task place', 'Starting the work', 'Completing the work', 'The task is finished'];
+
+function progressIndex(label) {
+  const i = PROGRESS_ORDER.indexOf(typeof label === 'string' ? label : '');
+  return i === -1 ? 0 : i;
+}
+
+function StatusModal({ app, onClose, canAdvance = false, onAdvance, advancing = false, onPay, paying = false }) {
+  if (!app) return null;
+
+  const progress = progressIndex(app.task?.progress);
+  const finished = progress >= STATUS_FLOW.length;
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="max-h-[85vh] w-full max-w-xl overflow-y-auto rounded-3xl border border-white/10 bg-ink-900 p-8 shadow-glow"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between">
+          <h3 className="font-display text-xl font-700 text-white">Task Status</h3>
+          <button
+            onClick={onClose}
+            className="grid h-9 w-9 place-items-center rounded-full border border-white/10 text-slate-400 transition-colors hover:text-white"
+            aria-label="Close"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="mt-7 space-y-1">
+          {STATUS_FLOW.map((s, i) => {
+            const done = i < progress;
+            const isLast = i === STATUS_FLOW.length - 1;
+            return (
+              <div key={s.key} className="relative flex gap-4 pb-6 last:pb-0">
+                {!isLast && (
+                  <span
+                    className={`absolute left-[15px] top-8 h-[calc(100%-1.25rem)] w-px ${done ? 'bg-brand-400/40' : 'bg-white/10'}`}
+                  />
+                )}
+                <span
+                  className={`relative z-10 grid h-8 w-8 shrink-0 place-items-center rounded-full border text-sm ${
+                    done
+                      ? 'border-brand-400/50 bg-brand-500/20 text-brand-300'
+                      : 'border-white/10 bg-white/5 text-slate-500'
+                  }`}
+                >
+                  {done ? <CheckCircle2 className="h-4 w-4" /> : i + 1}
+                </span>
+                <div className="pt-1">
+                  <p className={`text-base font-medium ${done ? 'text-white' : 'text-slate-400'}`}>{s.label}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {canAdvance && (
+          <div className="mt-5 flex items-center justify-between border-t border-white/10 pt-5">
+            {finished ? (
+              <span className="text-sm font-medium text-brand-300">Task finished. 🎉</span>
+            ) : progress >= 3 ? (
+              <span className="text-sm text-slate-400">
+                {STATUS_FLOW[progress].label} — waiting for the customer to release payment.
+              </span>
+            ) : (
+              <>
+                <span className="text-sm text-slate-400">
+                  Step {progress + 1} of {STATUS_FLOW.length}: {STATUS_FLOW[progress].label}
+                </span>
+                <button
+                  onClick={onAdvance}
+                  disabled={advancing}
+                  className="flex items-center gap-1.5 rounded-full border border-brand-400/50 bg-brand-500/15 px-4 py-2 text-sm font-semibold text-brand-300 transition-colors hover:bg-brand-500 hover:text-ink-950 disabled:opacity-60"
+                >
+                  {advancing ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                  Progress
+                </button>
+              </>
+            )}
+          </div>
+        )}
+
+        {!canAdvance && app.task?.progress === 'Completing the work' && (
+          <div className="mt-5 flex items-center justify-between border-t border-white/10 pt-5">
+            <span className="text-sm text-slate-400">Worker is completing the work — release payment to finish.</span>
+            <button
+              onClick={() => onPay?.(app)}
+              disabled={paying}
+              className="flex items-center gap-1.5 rounded-full border border-emerald-400/50 bg-emerald-500/15 px-4 py-2 text-sm font-semibold text-emerald-300 transition-colors hover:bg-emerald-500 hover:text-ink-950 disabled:opacity-60"
+            >
+              {paying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wallet className="h-4 w-4" />}
+              Pay Now
+            </button>
+          </div>
+        )}
+
+        <div className="mt-5 flex items-center justify-between border-t border-white/10 pt-5">
+          <span className="text-sm text-slate-400">Application: {APPLICATION_STATUS_LABELS[app.status]}</span>
+          <span className={`rounded-full border px-3 py-1 text-sm font-medium ${STATUS_STYLES[app.task?.status]}`}>
+            {STATUS_LABELS[app.task?.status]}
+          </span>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
 
 // A client's own task can only be edited/deleted before a worker is confirmed for it.
 const LOCKED_STATUSES = ['assigned', 'completed'];
@@ -265,6 +396,27 @@ function ApplicantsPanel({ task, onTaskUpdated }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [confirmingId, setConfirmingId] = useState(null);
+  const [openStatusApp, setOpenStatusApp] = useState(null);
+  const [payingId, setPayingId] = useState(null);
+
+  const handleComplete = async (app) => {
+    if (!app.task) return;
+    setPayingId(app.task.id);
+    try {
+      const updated = await completeTask(app.task.id);
+      const updatedTask = {
+        ...app.task,
+        progress: updated?.progress ?? 'The task is finished',
+        status: updated?.status ?? 'completed',
+      };
+      onTaskUpdated?.(updatedTask);
+      setOpenStatusApp((cur) => (cur ? { ...cur, task: updatedTask } : cur));
+    } catch {
+      // ignore failures
+    } finally {
+      setPayingId(null);
+    }
+  };
 
   useEffect(() => {
     apiGet(`/tasks/${task.id}/applicants`)
@@ -291,8 +443,9 @@ function ApplicantsPanel({ task, onTaskUpdated }) {
   const canConfirm = task.status === 'open' || task.status === 'matching';
 
   return (
-    <div className="border-t border-white/10 bg-ink-900/40 px-6 py-5">
-      {loading ? (
+    <>
+      <div className="border-t border-white/10 bg-ink-900/40 px-6 py-5">
+        {loading ? (
         <div className="flex items-center gap-2 text-sm text-slate-400">
           <Loader2 className="h-4 w-4 animate-spin" /> Loading applicants…
         </div>
@@ -322,7 +475,7 @@ function ApplicantsPanel({ task, onTaskUpdated }) {
                 </div>
               </div>
 
-              <div className="flex shrink-0 items-center gap-2">
+              <div className="relative flex shrink-0 items-center gap-2">
                 <Link
                   to={`/chat?with=${a.user.id}`}
                   className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-300 transition-colors hover:text-white"
@@ -343,12 +496,32 @@ function ApplicantsPanel({ task, onTaskUpdated }) {
                     Confirm
                   </button>
                 )}
+                {a.user && (
+                  <button
+                    onClick={() => setOpenStatusApp({ ...a, task })}
+                    className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-300 transition-colors hover:text-white"
+                    aria-label="View status"
+                  >
+                    <Info className="h-3.5 w-3.5" />
+                    Status
+                  </button>
+                )}
               </div>
             </div>
           ))}
+            </div>
+          )}
         </div>
+      {openStatusApp && (
+      <StatusModal
+        app={openStatusApp}
+        onClose={() => setOpenStatusApp(null)}
+        canAdvance={false}
+        onPay={handleComplete}
+        paying={payingId === openStatusApp.task?.id}
+      />
       )}
-    </div>
+    </>
   );
 }
 
@@ -535,6 +708,29 @@ function WorkerProgress() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [applications, setApplications] = useState([]);
+  const [openStatusApp, setOpenStatusApp] = useState(null);
+  const [advancingId, setAdvancingId] = useState(null);
+
+  const handleAdvance = async (app) => {
+    if (!app.task) return;
+    setAdvancingId(app.task.id);
+    try {
+      const updated = await advanceProgress(app.task.id);
+      const nextTask = {
+        ...app.task,
+        progress: updated?.progress ?? app.task?.progress ?? '',
+        status: updated?.status ?? app.task.status,
+      };
+      setApplications((prev) =>
+        prev.map((a) => (a.task && a.task.id === app.task.id ? { ...a, task: nextTask } : a)),
+      );
+      setOpenStatusApp((cur) => (cur ? { ...cur, task: nextTask } : cur));
+    } catch {
+      // ignore failures (e.g. not the assigned worker)
+    } finally {
+      setAdvancingId(null);
+    }
+  };
 
   useEffect(() => {
     apiGet('/my-applications')
@@ -609,7 +805,7 @@ function WorkerProgress() {
                     </p>
                   </div>
                    {a.task && (
-                     <div className="flex shrink-0 flex-wrap items-center gap-2">
+                     <div className="relative flex shrink-0 flex-wrap items-center gap-2">
                        <Link
                          to={`/chat?with=${a.task.user_id}`}
                          className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-300 transition-colors hover:text-white"
@@ -624,6 +820,14 @@ function WorkerProgress() {
                          {STATUS_LABELS[a.task.status]}
                        </span>
                        <span className="font-display text-sm font-700 text-white">${a.task.budget}</span>
+                       <button
+                         onClick={() => setOpenStatusApp(a)}
+                         className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-300 transition-colors hover:text-white"
+                         aria-label="View status"
+                       >
+                         <Info className="h-3.5 w-3.5" />
+                         Status
+                       </button>
                      </div>
                    )}
                 </div>
@@ -632,6 +836,15 @@ function WorkerProgress() {
           )}
         </div>
       </div>
+      {openStatusApp && (
+      <StatusModal
+        app={openStatusApp}
+        onClose={() => setOpenStatusApp(null)}
+        canAdvance={openStatusApp.status === 'accepted'}
+        advancing={advancingId === openStatusApp.task?.id}
+        onAdvance={() => handleAdvance(openStatusApp)}
+      />
+      )}
     </>
   );
 }

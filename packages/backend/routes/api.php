@@ -35,6 +35,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/my-tasks', [TaskController::class, 'myTasks']);
     Route::put('/tasks/{task}', [TaskController::class, 'update']);
     Route::delete('/tasks/{task}', [TaskController::class, 'destroy']);
+    Route::post('/tasks/{task}/progress', [TaskController::class, 'advanceProgress']);
+    Route::post('/tasks/{task}/complete', [TaskController::class, 'completeTask']);
     Route::get('/tasks/{task}/applicants', [TaskController::class, 'applicants']);
 
     Route::get('/chat/conversations', [ChatController::class, 'conversations']);

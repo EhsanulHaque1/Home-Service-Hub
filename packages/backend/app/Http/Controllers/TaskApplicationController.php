@@ -13,7 +13,7 @@ class TaskApplicationController extends Controller
 
         $rows = DB::select(
             "SELECT ta.*, t.[id] AS t_id, t.[title] AS t_title, t.[budget] AS t_budget, t.[status] AS t_status,
-                    t.[category] AS t_category, t.[location] AS t_location, t.[user_id] AS t_user_id
+                    t.[category] AS t_category, t.[location] AS t_location, t.[user_id] AS t_user_id, t.[progress] AS t_progress
              FROM [task_applications] ta
              LEFT JOIN [tasks] t ON t.[id] = ta.[task_id]
              WHERE ta.[user_id] = $userId
@@ -29,6 +29,7 @@ class TaskApplicationController extends Controller
                 'category' => $row->t_category,
                 'location' => $row->t_location,
                 'user_id' => $row->t_user_id,
+                'progress' => $row->t_progress,
             ] : null;
 
             return (object) [
