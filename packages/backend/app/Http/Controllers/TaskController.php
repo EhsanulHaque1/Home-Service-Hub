@@ -188,6 +188,75 @@ class TaskController extends Controller
         return response()->json($applicants);
     }
 
+    public function advanceProgress(Request $request, $task)
+    {
+        $userId = $request->user()->id;
+
+        $rows = DB::select("SELECT * FROM [tasks] WHERE [id] = $task");
+        $taskRow = $rows[0] ?? null;
+
+        if (!$taskRow) {
+            return response()->json(['message' => 'Task not found.'], 404);
+        }
+
+        if ($taskRow->assigned_worker_id != $userId) {
+            return response()->json(['message' => 'Only the assigned worker can update progress.'], 403);
+        }
+
+        $progressOrder = [
+            '',
+            'Arriving at the task place',
+            'Starting the work',
+            'Completing the work',
+            'The task is finished',
+        ];
+
+        $current = $taskRow->progress ?? '';
+        $idx = array_search($current, $progressOrder, true);
+        if ($idx === false) {
+            $idx = 0;
+        }
+
+        if ($idx >= 4) {
+            return response()->json(['message' => 'Task already finished.'], 422);
+        }
+
+        $next = $progressOrder[$idx + 1];
+        $status = $idx + 1 >= 4 ? 'completed' : $taskRow->status;
+
+        DB::update(
+            "UPDATE [tasks] SET [progress] = '$next', [status] = '$status', [updated_at] = GETDATE() WHERE [id] = $task"
+        );
+
+        $rows = DB::select("SELECT * FROM [tasks] WHERE [id] = $task");
+
+        return response()->json($rows[0] ?? null);
+    }
+
+    public function completeTask(Request $request, $task)
+    {
+        $userId = $request->user()->id;
+
+        $rows = DB::select("SELECT * FROM [tasks] WHERE [id] = $task");
+        $taskRow = $rows[0] ?? null;
+
+        if (!$taskRow) {
+            return response()->json(['message' => 'Task not found.'], 404);
+        }
+
+        if ($taskRow->user_id != $userId) {
+            return response()->json(['message' => 'Only the task owner can finalize the task.'], 403);
+        }
+
+        DB::update(
+            "UPDATE [tasks] SET [progress] = 'The task is finished', [status] = 'completed', [updated_at] = GETDATE() WHERE [id] = $task"
+        );
+
+        $rows = DB::select("SELECT * FROM [tasks] WHERE [id] = $task");
+
+        return response()->json($rows[0] ?? null);
+    }
+
     public function myTasks(Request $request)
     {
         $userId = $request->user()->id;

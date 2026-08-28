@@ -1,14 +1,53 @@
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+const API_BASE = API_URL.replace(/\/api$/, '');
+
+/**
+ * Read a cookie value by name (used to grab the XSRF-TOKEN set by Sanctum).
+ */
+function getCookie(name) {
+  const match = document.cookie.match(new RegExp('(^|;\\s*)' + name + '=([^;]*)'));
+  return match ? decodeURIComponent(match[2]) : null;
+}
+
+/**
+ * Sanctum SPA auth requires a CSRF cookie before any state-changing request.
+ * We fetch /sanctum/csrf-cookie once (cached) so the XSRF-TOKEN cookie is set,
+ * then forward it as the X-XSRF-TOKEN header on POST/PUT/DELETE calls.
+ */
+let csrfReady = null;
+function ensureCsrfToken() {
+  if (!csrfReady) {
+    csrfReady = fetch(`${API_BASE}/sanctum/csrf-cookie`, {
+      method: 'GET',
+      credentials: 'include',
+      headers: { Accept: 'application/json' },
+    })
+      .then(() => {})
+      .catch(() => {
+        csrfReady = null;
+      });
+  }
+  return csrfReady;
+}
 
 /**
  * Generic fetch wrapper with credentials included for cookie-based auth.
  */
 async function request(path, options = {}) {
+  const method = (options.method || 'GET').toUpperCase();
+  const isUnsafe = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method);
+
   const headers = {
     'Content-Type': 'application/json',
     Accept: 'application/json',
     ...(options.headers || {}),
   };
+
+  if (isUnsafe) {
+    await ensureCsrfToken();
+    const xsrf = getCookie('XSRF-TOKEN');
+    if (xsrf) headers['X-XSRF-TOKEN'] = xsrf;
+  }
 
   const res = await fetch(`${API_URL}${path}`, {
     ...options,
@@ -92,5 +131,13 @@ export function fetchFeedbacks() {
 
 export function createFeedback(data) {
   return apiPost('/feedback', data);
+}
+
+export function advanceProgress(taskId) {
+  return apiPost(`/tasks/${taskId}/progress`);
+}
+
+export function completeTask(taskId) {
+  return apiPost(`/tasks/${taskId}/complete`);
 }
 
