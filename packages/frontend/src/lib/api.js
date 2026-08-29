@@ -141,3 +141,7 @@ export function completeTask(taskId) {
   return apiPost(`/tasks/${taskId}/complete`);
 }
 
+export function fetchPaymentSummary() {
+  return apiGet('/payments/summary');
+}
+
