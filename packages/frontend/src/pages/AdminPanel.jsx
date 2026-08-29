@@ -82,6 +82,7 @@ const statusStyles = {
   Refunded: 'bg-slate-500/15 text-slate-400 border-slate-500/30',
   Failed: 'bg-rose-500/15 text-rose-300 border-rose-500/30',
   Complete: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+  successfull: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
   pending: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
   failed: 'bg-rose-500/15 text-rose-300 border-rose-500/30',
 };

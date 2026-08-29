@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   ClipboardList,
   Users,
@@ -26,7 +26,7 @@ import {
   Wallet,
 } from 'lucide-react';
 import PageShell from '@/components/PageShell';
-import { apiGet, apiPost, apiPut, apiDelete, advanceProgress, completeTask } from '@/lib/api';
+import { apiGet, apiPost, apiPut, apiDelete, advanceProgress, initiatePayment } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import {
   CATEGORIES,
@@ -61,7 +61,7 @@ function progressIndex(label) {
   return i === -1 ? 0 : i;
 }
 
-function StatusModal({ app, onClose, canAdvance = false, onAdvance, advancing = false, onPay, paying = false }) {
+function StatusModal({ app, onClose, canAdvance = false, onAdvance, advancing = false, onPay, paying = false, payError = '' }) {
   if (!app) return null;
 
   const progress = progressIndex(app.task?.progress);
@@ -142,17 +142,22 @@ function StatusModal({ app, onClose, canAdvance = false, onAdvance, advancing = 
         )}
 
         {!canAdvance && app.task?.progress === 'Completing the work' && (
-          <div className="mt-5 flex items-center justify-between border-t border-white/10 pt-5">
-            <span className="text-sm text-slate-400">Worker is completing the work — release payment to finish.</span>
-            <button
-              onClick={() => onPay?.(app)}
-              disabled={paying}
-              className="flex items-center gap-1.5 rounded-full border border-emerald-400/50 bg-emerald-500/15 px-4 py-2 text-sm font-semibold text-emerald-300 transition-colors hover:bg-emerald-500 hover:text-ink-950 disabled:opacity-60"
-            >
-              {paying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wallet className="h-4 w-4" />}
-              Pay Now
-            </button>
-          </div>
+          <>
+            <div className="mt-5 flex items-center justify-between border-t border-white/10 pt-5">
+              <span className="text-sm text-slate-400">Worker is completing the work — release payment to finish.</span>
+              <button
+                onClick={() => onPay?.(app)}
+                disabled={paying}
+                className="flex items-center gap-1.5 rounded-full border border-emerald-400/50 bg-emerald-500/15 px-4 py-2 text-sm font-semibold text-emerald-300 transition-colors hover:bg-emerald-500 hover:text-ink-950 disabled:opacity-60"
+              >
+                {paying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wallet className="h-4 w-4" />}
+                Pay Now
+              </button>
+            </div>
+            {payError && (
+              <p className="mt-3 text-xs text-rose-400">{payError}</p>
+            )}
+          </>
         )}
 
         <div className="mt-5 flex items-center justify-between border-t border-white/10 pt-5">
@@ -161,6 +166,42 @@ function StatusModal({ app, onClose, canAdvance = false, onAdvance, advancing = 
             {STATUS_LABELS[app.task?.status]}
           </span>
         </div>
+        </div>
+      </div>,
+    document.body,
+  );
+}
+
+function PaymentResultModal({ result, onClose }) {
+  if (!result) return null;
+  const ok = result === 'success';
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="max-w-sm rounded-3xl border border-white/10 bg-ink-900 p-8 text-center shadow-glow"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className={`mx-auto grid h-14 w-14 place-items-center rounded-full ${ok ? 'bg-emerald-500/15 text-emerald-300' : 'bg-rose-500/15 text-rose-300'}`}>
+          {ok ? <CheckCircle2 className="h-7 w-7" /> : <X className="h-7 w-7" />}
+        </div>
+        <h3 className="mt-4 font-display text-xl font-700 text-white">
+          {ok ? 'Payment Successful' : 'Payment Failed'}
+        </h3>
+        <p className="mt-2 text-sm text-slate-400">
+          {ok
+            ? 'Thank you! The worker has been paid and the task is now complete.'
+            : 'The payment could not be completed. Please try again.'}
+        </p>
+        <button
+          onClick={onClose}
+          className="mt-6 rounded-full border border-brand-400/50 bg-brand-500/15 px-5 py-2 text-sm font-semibold text-brand-300 transition-colors hover:bg-brand-500 hover:text-ink-950"
+        >
+          Close
+        </button>
       </div>
     </div>,
     document.body,
@@ -398,21 +439,21 @@ function ApplicantsPanel({ task, onTaskUpdated }) {
   const [confirmingId, setConfirmingId] = useState(null);
   const [openStatusApp, setOpenStatusApp] = useState(null);
   const [payingId, setPayingId] = useState(null);
+  const [payError, setPayError] = useState('');
 
-  const handleComplete = async (app) => {
+  const handlePay = async (app) => {
     if (!app.task) return;
     setPayingId(app.task.id);
+    setPayError('');
     try {
-      const updated = await completeTask(app.task.id);
-      const updatedTask = {
-        ...app.task,
-        progress: updated?.progress ?? 'The task is finished',
-        status: updated?.status ?? 'completed',
-      };
-      onTaskUpdated?.(updatedTask);
-      setOpenStatusApp((cur) => (cur ? { ...cur, task: updatedTask } : cur));
-    } catch {
-      // ignore failures
+      const res = await initiatePayment(app.task.id);
+      if (res?.url) {
+        window.location.href = res.url;
+        return;
+      }
+      throw new Error('no_gateway');
+    } catch (err) {
+      setPayError(err?.message || 'Could not start the payment. Please try again.');
     } finally {
       setPayingId(null);
     }
@@ -517,8 +558,9 @@ function ApplicantsPanel({ task, onTaskUpdated }) {
         app={openStatusApp}
         onClose={() => setOpenStatusApp(null)}
         canAdvance={false}
-        onPay={handleComplete}
+        onPay={handlePay}
         paying={payingId === openStatusApp.task?.id}
+        payError={payError}
       />
       )}
     </>
@@ -851,6 +893,8 @@ function WorkerProgress() {
 
 export default function Dashboard() {
   const { user, loading: authLoading } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const paymentResult = searchParams.get('payment');
 
   const copy = !user
     ? { eyebrow: 'Overview', title: 'Dashboard', subtitle: "A live snapshot of what's happening across the marketplace right now." }
@@ -877,6 +921,10 @@ export default function Dashboard() {
           <ClientProgress />
         )}
       </div>
+
+      {(paymentResult === 'success' || paymentResult === 'failed') && (
+        <PaymentResultModal result={paymentResult} onClose={() => setSearchParams({})} />
+      )}
     </PageShell>
   );
 }

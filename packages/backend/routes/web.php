@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\MailController;
+use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\VerificationController;
 use Illuminate\Support\Facades\Route;
@@ -26,3 +27,8 @@ Route::get('/email/password-reset/{id}/{hash}', [PasswordResetController::class,
 // Email Verification signed link callback route (Delete Account)
 Route::get('/email/delete-account/{id}/{hash}', [AccountController::class, 'verifyAndDelete'])
     ->name('account.delete.verify');
+
+// SSLCommerz payment gateway callbacks (hit directly by SSLCommerz; POST with form data)
+Route::match(['GET', 'POST'], '/payments/sslcommerz/success', [PaymentController::class, 'success'])->name('sslcommerz.success');
+Route::match(['GET', 'POST'], '/payments/sslcommerz/fail', [PaymentController::class, 'fail'])->name('sslcommerz.fail');
+Route::match(['GET', 'POST'], '/payments/sslcommerz/cancel', [PaymentController::class, 'cancel'])->name('sslcommerz.cancel');

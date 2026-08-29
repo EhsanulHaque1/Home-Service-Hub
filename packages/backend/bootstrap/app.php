@@ -35,6 +35,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'api/account/*',
             'api/profile',
             'api/applications/*',
+            'payments/sslcommerz/success',
+            'payments/sslcommerz/fail',
+            'payments/sslcommerz/cancel',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
