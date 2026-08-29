@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8010/api';
 const API_BASE = API_URL.replace(/\/api$/, '');
 
 /**
@@ -143,5 +143,9 @@ export function completeTask(taskId) {
 
 export function fetchPaymentSummary() {
   return apiGet('/payments/summary');
+}
+
+export function initiatePayment(taskId) {
+  return apiPost(`/payments/${taskId}/sslcommerz/initiate`);
 }
 

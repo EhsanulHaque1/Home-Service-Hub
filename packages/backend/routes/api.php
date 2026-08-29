@@ -61,6 +61,7 @@ Route::post('/complaints', [ComplaintController::class, 'store']);
 
 Route::middleware('auth:sanctum')->get('/payments', [PaymentController::class, 'index']);
 Route::middleware('auth:sanctum')->get('/payments/summary', [PaymentController::class, 'summary']);
+Route::middleware('auth:sanctum')->post('/payments/{task}/sslcommerz/initiate', [PaymentController::class, 'initiate']);
 
 Route::get('/tasks', [TaskController::class, 'index']);
 Route::post('/tasks', [TaskController::class, 'store']);
