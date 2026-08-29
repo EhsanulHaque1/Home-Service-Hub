@@ -228,9 +228,36 @@ class TaskController extends Controller
             "UPDATE [tasks] SET [progress] = '$next', [status] = '$status', [updated_at] = GETDATE() WHERE [id] = $task"
         );
 
+        // When the worker reaches "Completing the work", open a pending payment.
+        if ($next === 'Completing the work') {
+            $this->ensurePayment($taskRow);
+        }
+
         $rows = DB::select("SELECT * FROM [tasks] WHERE [id] = $task");
 
         return response()->json($rows[0] ?? null);
+    }
+
+    /**
+     * Create a pending payment row once a task reaches "Completing the work".
+     * Safe to call repeatedly: it won't duplicate an existing payment for the task.
+     */
+    private function ensurePayment($taskRow): void
+    {
+        $taskId = $taskRow->id;
+        $existing = DB::select("SELECT TOP 1 [paymentid] FROM [payments] WHERE [task_id] = $taskId");
+        if (!empty($existing)) {
+            return;
+        }
+
+        $customerId = $taskRow->user_id ?? 'NULL';
+        $workerId = $taskRow->assigned_worker_id ?? 'NULL';
+        $amount = (float) ($taskRow->budget ?? 0);
+
+        DB::insert(
+            "INSERT INTO [payments] ([customer_id], [worker_id], [task_id], [amount], [status], [paymentdate], [created_at], [updated_at])
+             VALUES ($customerId, $workerId, $taskId, $amount, 'pending', GETDATE(), GETDATE(), GETDATE())"
+        );
     }
 
     public function completeTask(Request $request, $task)
@@ -250,6 +277,11 @@ class TaskController extends Controller
 
         DB::update(
             "UPDATE [tasks] SET [progress] = 'The task is finished', [status] = 'completed', [updated_at] = GETDATE() WHERE [id] = $task"
+        );
+
+        // The customer releasing payment completes the pending payment.
+        DB::update(
+            "UPDATE [payments] SET [status] = 'Complete', [updated_at] = GETDATE() WHERE [task_id] = $task AND [status] != 'Complete'"
         );
 
         $rows = DB::select("SELECT * FROM [tasks] WHERE [id] = $task");

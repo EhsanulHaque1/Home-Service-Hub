@@ -46,7 +46,7 @@ export default function SignIn() {
     if (user && accountDeletedParam !== '1') {
       setStatus('success');
       const timer = setTimeout(() => {
-        navigate('/?verified=1');
+        navigate(user.role === 'admin' ? '/adminpanel' : '/?verified=1');
       }, 800);
       return () => clearTimeout(timer);
     }
@@ -140,9 +140,10 @@ export default function SignIn() {
     setResendMessage('');
 
     try {
-      await login({ email: form.email, password: form.password, remember: form.remember });
+      const res = await login({ email: form.email, password: form.password, remember: form.remember });
       setStatus('success');
-      setTimeout(() => navigate('/'), 1000);
+      const isAdmin = res?.user?.role === 'admin';
+      setTimeout(() => navigate(isAdmin ? '/adminpanel' : '/'), 1000);
     } catch (err) {
       setStatus('idle');
       if (err.status === 403 && err.errors?.email) {

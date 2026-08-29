@@ -5,6 +5,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\ComplaintController;
 use App\Http\Controllers\FeedbackController;
+use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\TaskApplicationController;
 use App\Http\Controllers\TaskController;
@@ -57,6 +58,9 @@ Route::middleware('auth:sanctum')->group(function () {
 // Complaints routes
 Route::get('/complaints', [ComplaintController::class, 'index']);
 Route::post('/complaints', [ComplaintController::class, 'store']);
+
+Route::middleware('auth:sanctum')->get('/payments', [PaymentController::class, 'index']);
+Route::middleware('auth:sanctum')->get('/payments/summary', [PaymentController::class, 'summary']);
 
 Route::get('/tasks', [TaskController::class, 'index']);
 Route::post('/tasks', [TaskController::class, 'store']);
