@@ -42,7 +42,7 @@ function ensureCsrfToken() {
       credentials: "include",
       headers: { Accept: "application/json" },
     })
-      .then(() => {})
+      .then(() => { })
       .catch(() => {
         csrfReady = null;
       });
@@ -184,5 +184,26 @@ export function initiatePayment(taskId) {
   return apiPost(`/payments/${taskId}/sslcommerz/initiate`);
 }
 
+export function fetchUserSummary() {
+  return apiGet('/admin/users/summary');
+}
+
+export function fetchAllUsers(rank = 'none') {
+  return apiGet(`/admin/users/all?rank=${rank}`);
+}
+
+export function fetchAdminClients(rank = 'none') {
+  return apiGet(`/admin/users/clients?rank=${rank}`);
+}
+
+export function fetchAdminCustomers(rank = 'none') {
+  return apiGet(`/admin/users/customers?rank=${rank}`);
+}
+
+export function fetchAdminWorkers(rank = 'none') {
+  return apiGet(`/admin/users/workers?rank=${rank}`);
+}
+
 // Export auth token management functions
 export { getAuthToken, setAuthToken };
+
