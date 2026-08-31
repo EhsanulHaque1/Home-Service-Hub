@@ -145,11 +145,27 @@ class TaskApplicationController extends Controller
             DB::update("UPDATE [task_applications] SET [status] = 'accepted', [updated_at] = GETDATE() WHERE [id] = $application");
             DB::update("UPDATE [task_applications] SET [status] = 'declined', [updated_at] = GETDATE() WHERE [task_id] = $appRow->task_id AND [id] != $application");
             DB::update("UPDATE [tasks] SET [status] = 'assigned', [assigned_worker_id] = $appRow->user_id, [updated_at] = GETDATE() WHERE [id] = $appRow->task_id");
+
+            // Insert into task_assignments if table exists
+            $clientUserId = $taskRow->user_id;
+            $workerUserId = $appRow->user_id;
+            $agreedPrice = (float) ($taskRow->budget ?? 0);
+            try {
+                DB::insert("
+                    INSERT INTO [task_assignments] ([task_id], [client_user_id], [worker_user_id], [status], [agreed_price], [assigned_at], [created_at], [updated_at])
+                    VALUES ($appRow->task_id, $clientUserId, $workerUserId, 'assigned', $agreedPrice, GETDATE(), GETDATE(), GETDATE())
+                ");
+            } catch (\Throwable $ex) {
+                // Ignore if duplicate or table variance
+            }
+
             DB::commit();
         } catch (\Throwable $e) {
             DB::rollBack();
             return response()->json(['message' => 'Failed to confirm application.'], 500);
         }
+
+        \App\Services\UserStatsService::syncTask((int) $appRow->task_id);
 
         $appRows = DB::select("SELECT * FROM [task_applications] WHERE [id] = $application");
         $taskRows = DB::select(

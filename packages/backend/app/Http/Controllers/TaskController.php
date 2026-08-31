@@ -76,6 +76,9 @@ class TaskController extends Controller
         );
 
         $id = DB::getPdo()->lastInsertId();
+        if ($userId) {
+            \App\Services\UserStatsService::syncUser($userId);
+        }
         $rows = DB::select("SELECT * FROM [tasks] WHERE [id] = $id");
 
         return response()->json($rows[0] ?? null, 201);
@@ -133,6 +136,7 @@ class TaskController extends Controller
         }
 
         DB::delete("DELETE FROM [tasks] WHERE [id] = $task");
+        \App\Services\UserStatsService::syncUser(array_filter([$taskRow->user_id, $taskRow->assigned_worker_id]));
 
         return response()->json(['message' => 'Task deleted.']);
     }
@@ -233,6 +237,10 @@ class TaskController extends Controller
             $this->ensurePayment($taskRow);
         }
 
+        if ($status === 'completed' || $next === 'The task is finished') {
+            \App\Services\UserStatsService::syncTask((int) $task);
+        }
+
         $rows = DB::select("SELECT * FROM [tasks] WHERE [id] = $task");
 
         return response()->json($rows[0] ?? null);
@@ -283,6 +291,8 @@ class TaskController extends Controller
         DB::update(
             "UPDATE [payments] SET [status] = 'Complete', [updated_at] = GETDATE() WHERE [task_id] = $task AND [status] != 'Complete'"
         );
+
+        \App\Services\UserStatsService::syncTask((int) $task);
 
         $rows = DB::select("SELECT * FROM [tasks] WHERE [id] = $task");
 

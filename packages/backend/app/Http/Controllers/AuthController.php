@@ -83,13 +83,16 @@ class AuthController extends Controller
             $firstTrade = !empty($expertise) && is_array($expertise) ? $expertise[0] : ($expertise ?? 'General');
             try {
                 DB::insert(
-                    "INSERT INTO [workers] ([name], [trade], [location], [bio], [rating], [jobs_completed], [hourly_rate], [created_at], [updated_at])
-                     VALUES ('$name', '$firstTrade', '$location', '', 5.0, 0, 25.00, GETDATE(), GETDATE())"
+                    "INSERT INTO [workers] ([user_id], [name], [email], [phone], [trade], [location], [bio], [rating], [jobs_completed], [tasks_received], [total_money_gained], [hourly_rate], [created_at], [updated_at])
+                     VALUES (?, ?, ?, ?, ?, ?, '', 5.0, 0, 0, 0, 25.00, GETDATE(), GETDATE())",
+                    [$id, $name, $email, $phone, $firstTrade, $location]
                 );
             } catch (\Throwable $e) {
                 Log::warning('Could not sync to workers table: ' . $e->getMessage());
             }
         }
+
+        \App\Services\UserStatsService::syncUser($id);
 
         $verificationUrl = URL::temporarySignedRoute(
             'verification.verify',
