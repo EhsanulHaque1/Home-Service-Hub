@@ -161,12 +161,15 @@ class PaymentController extends Controller
             );
 
             if ($status === 'successfull') {
-                $rows = DB::select("SELECT [task_id] FROM [payments] WHERE [paymentid] = $paymentId");
+                $rows = DB::select("SELECT [task_id], [customer_id], [worker_id] FROM [payments] WHERE [paymentid] = $paymentId");
                 $taskId = $rows[0]->task_id ?? null;
                 if ($taskId) {
                     DB::update(
                         "UPDATE [tasks] SET [progress] = 'The task is finished', [status] = 'completed', [updated_at] = GETDATE() WHERE [id] = $taskId"
                     );
+                    \App\Services\UserStatsService::syncTask((int) $taskId);
+                } else if (!empty($rows)) {
+                    \App\Services\UserStatsService::syncUser(array_filter([$rows[0]->customer_id, $rows[0]->worker_id]));
                 }
             }
         }
