@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AccountController;
+use App\Http\Controllers\AdminTaskController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\ComplaintController;
@@ -78,3 +79,13 @@ Route::get('/tasks/{task}', [TaskController::class, 'show']);
 
 Route::get('/workers', [WorkerController::class, 'index']);
 Route::get('/workers/{worker}', [WorkerController::class, 'show']);
+
+// Admin Panel Routes (Protected with auth:sanctum middleware)
+Route::middleware(['auth:sanctum'])->prefix('admin')->group(function () {
+    // Task management with advanced analytics
+    Route::get('/tasks', [AdminTaskController::class, 'index']);
+    Route::get('/tasks/statistics', [AdminTaskController::class, 'taskStatistics']);
+    Route::get('/tasks/priority', [AdminTaskController::class, 'highPriorityTasks']);
+    Route::get('/tasks/applications', [AdminTaskController::class, 'tasksWithApplicationAnalytics']);
+    Route::get('/tasks/comparison', [AdminTaskController::class, 'tasksVsCategoryAverage']);
+});

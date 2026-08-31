@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect } from "react";
 import {
   Users,
   HardHat,
@@ -17,8 +17,8 @@ import {
   ChevronDown,
   MoreVertical,
   Download,
-} from 'lucide-react';
-import { apiGet, fetchPaymentSummary } from '@/lib/api';
+} from "lucide-react";
+import { apiGet, fetchPaymentSummary } from "@/lib/api";
 
 const tabs = [
   { id: 'all_users', label: 'Total Users', icon: Users },
@@ -29,75 +29,49 @@ const tabs = [
   { id: 'payments', label: 'Payments', icon: CreditCard },
 ];
 
-const customers = [
-  { id: 'C-1042', name: 'Sarah Chen', email: 'sarah.chen@email.com', phone: '+1 (415) 555-0142', tasks: 7, spent: '$1,240', status: 'Active', joined: 'Jan 12, 2026' },
-  { id: 'C-1043', name: 'Marcus Reed', email: 'marcus.r@email.com', phone: '+1 (628) 555-0198', tasks: 3, spent: '$520', status: 'Active', joined: 'Feb 03, 2026' },
-  { id: 'C-1044', name: 'Aisha Bello', email: 'aisha.b@email.com', phone: '+1 (510) 555-0177', tasks: 12, spent: '$2,890', status: 'Active', joined: 'Nov 22, 2025' },
-  { id: 'C-1045', name: 'David Kim', email: 'd.kim@email.com', phone: '+1 (408) 555-0123', tasks: 0, spent: '$0', status: 'Inactive', joined: 'Aug 14, 2026' },
-  { id: 'C-1046', name: 'Elena Rossi', email: 'elena.rossi@email.com', phone: '+1 (917) 555-0156', tasks: 5, spent: '$870', status: 'Active', joined: 'Mar 30, 2026' },
-  { id: 'C-1047', name: 'Tom Walsh', email: 'tom.walsh@email.com', phone: '+1 (718) 555-0189', tasks: 2, spent: '$310', status: 'Suspended', joined: 'Jul 01, 2026' },
-];
+const customers = [];
 
-const workers = [
-  { id: 'W-201', name: 'Diego Torres', trade: 'Electrician', rating: 4.8, tasksDone: 142, earned: '$18,450', status: 'Available', joined: 'Oct 05, 2025' },
-  { id: 'W-202', name: 'Lena Park', trade: 'Painter', rating: 4.7, tasksDone: 98, earned: '$12,200', status: 'Busy', joined: 'Nov 18, 2025' },
-  { id: 'W-203', name: 'James Okafor', trade: 'Plumber', rating: 4.9, tasksDone: 210, earned: '$26,800', status: 'Available', joined: 'Sep 01, 2025' },
-  { id: 'W-204', name: 'Priya Nair', trade: 'Cleaner', rating: 5.0, tasksDone: 175, earned: '$15,300', status: 'Available', joined: 'Dec 12, 2025' },
-  { id: 'W-205', name: 'Carlos Mendez', trade: 'Carpenter', rating: 4.6, tasksDone: 64, earned: '$9,750', status: 'Offline', joined: 'Feb 20, 2026' },
-  { id: 'W-206', name: 'Nina Petrova', trade: 'HVAC', rating: 4.8, tasksDone: 88, earned: '$11,900', status: 'Busy', joined: 'Jan 08, 2026' },
-];
+const workers = [];
 
-const tasks = [
-  { id: 'T-5012', title: 'Kitchen sink replacement', customer: 'Sarah Chen', worker: 'James Okafor', status: 'In Progress', priority: 'High', due: 'Aug 29, 2026', price: '$320' },
-  { id: 'T-5013', title: 'Living room painting', customer: 'Elena Rossi', worker: 'Lena Park', status: 'Scheduled', priority: 'Medium', due: 'Sep 02, 2026', price: '$580' },
-  { id: 'T-5014', title: 'Deep house cleaning', customer: 'Aisha Bello', worker: 'Priya Nair', status: 'Completed', priority: 'Low', due: 'Aug 26, 2026', price: '$240' },
-  { id: 'T-5015', title: 'Switchboard upgrade', customer: 'Marcus Reed', worker: 'Diego Torres', status: 'In Progress', priority: 'High', due: 'Aug 28, 2026', price: '$450' },
-  { id: 'T-5016', title: 'Cabinet door repair', customer: 'Tom Walsh', worker: 'Carlos Mendez', status: 'Pending', priority: 'Low', due: 'Sep 05, 2026', price: '$190' },
-  { id: 'T-5017', title: 'AC unit installation', customer: 'David Kim', worker: 'Nina Petrova', status: 'Cancelled', priority: 'Medium', due: 'Aug 25, 2026', price: '$0' },
-  { id: 'T-5018', title: 'Bathroom tile work', customer: 'Aisha Bello', worker: 'Carlos Mendez', status: 'Scheduled', priority: 'Medium', due: 'Sep 08, 2026', price: '$720' },
-];
+const tasks = [];
 
-const feedback = [
-  { id: 'F-301', customer: 'Sarah Chen', worker: 'James Okafor', task: 'Kitchen sink replacement', rating: 5, comment: 'Fast, professional, and cleaned up afterward. Highly recommend!', date: 'Aug 27, 2026' },
-  { id: 'F-302', customer: 'Elena Rossi', worker: 'Lena Park', task: 'Bedroom painting', rating: 4, comment: 'Great color matching, took a bit longer than expected but quality is solid.', date: 'Aug 24, 2026' },
-  { id: 'F-303', customer: 'Aisha Bello', worker: 'Priya Nair', task: 'Deep house cleaning', rating: 5, comment: 'Spotless. Every corner was covered. Will book again.', date: 'Aug 26, 2026' },
-  { id: 'F-304', customer: 'Marcus Reed', worker: 'Diego Torres', task: 'Switchboard upgrade', rating: 5, comment: 'Explained everything clearly. Very knowledgeable.', date: 'Aug 28, 2026' },
-  { id: 'F-305', customer: 'Tom Walsh', worker: 'Carlos Mendez', task: 'Shelf installation', rating: 3, comment: 'Job was okay but arrived 45 minutes late without notice.', date: 'Aug 20, 2026' },
-];
-
-
+const feedback = [];
 
 const statusStyles = {
-  Active: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
-  Inactive: 'bg-slate-500/15 text-slate-400 border-slate-500/30',
-  Suspended: 'bg-rose-500/15 text-rose-300 border-rose-500/30',
-  Available: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
-  Busy: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
-  Offline: 'bg-slate-500/15 text-slate-400 border-slate-500/30',
-  'In Progress': 'bg-sky-500/15 text-sky-300 border-sky-500/30',
-  Scheduled: 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30',
-  Completed: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
-  Pending: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
-  Cancelled: 'bg-rose-500/15 text-rose-300 border-rose-500/30',
-  Paid: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
-  Refunded: 'bg-slate-500/15 text-slate-400 border-slate-500/30',
-  Failed: 'bg-rose-500/15 text-rose-300 border-rose-500/30',
-  Complete: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
-  successfull: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
-  pending: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
-  failed: 'bg-rose-500/15 text-rose-300 border-rose-500/30',
+  Active: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
+  Inactive: "bg-slate-500/15 text-slate-400 border-slate-500/30",
+  Suspended: "bg-rose-500/15 text-rose-300 border-rose-500/30",
+  Available: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
+  Busy: "bg-amber-500/15 text-amber-300 border-amber-500/30",
+  Offline: "bg-slate-500/15 text-slate-400 border-slate-500/30",
+  "In Progress": "bg-sky-500/15 text-sky-300 border-sky-500/30",
+  Scheduled: "bg-indigo-500/15 text-indigo-300 border-indigo-500/30",
+  Completed: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
+  Pending: "bg-amber-500/15 text-amber-300 border-amber-500/30",
+  Cancelled: "bg-rose-500/15 text-rose-300 border-rose-500/30",
+  Paid: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
+  Refunded: "bg-slate-500/15 text-slate-400 border-slate-500/30",
+  Failed: "bg-rose-500/15 text-rose-300 border-rose-500/30",
+  Complete: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
+  successfull: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
+  pending: "bg-amber-500/15 text-amber-300 border-amber-500/30",
+  failed: "bg-rose-500/15 text-rose-300 border-rose-500/30",
 };
 
 const priorityStyles = {
-  High: 'bg-rose-500/15 text-rose-300 border-rose-500/30',
-  Medium: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
-  Low: 'bg-slate-500/15 text-slate-400 border-slate-500/30',
+  High: "bg-rose-500/15 text-rose-300 border-rose-500/30",
+  Medium: "bg-amber-500/15 text-amber-300 border-amber-500/30",
+  Low: "bg-slate-500/15 text-slate-400 border-slate-500/30",
 };
 
 function Badge({ children, variant }) {
-  const cls = statusStyles[variant] || statusStyles[variant] || 'bg-slate-500/15 text-slate-400 border-slate-500/30';
+  const cls =
+    statusStyles[variant] ||
+    "bg-slate-500/15 text-slate-400 border-slate-500/30";
   return (
-    <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${cls}`}>
+    <span
+      className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${cls}`}
+    >
       {children}
     </span>
   );
@@ -107,7 +81,9 @@ function StatCard({ icon: Icon, label, value, sub, accent }) {
   return (
     <div className="card p-5">
       <div className="flex items-center justify-between">
-        <span className={`grid h-10 w-10 place-items-center rounded-xl ${accent}`}>
+        <span
+          className={`grid h-10 w-10 place-items-center rounded-xl ${accent}`}
+        >
           <Icon className="h-5 w-5" />
         </span>
       </div>
@@ -124,7 +100,7 @@ function StarRating({ rating }) {
       {[1, 2, 3, 4, 5].map((n) => (
         <Star
           key={n}
-          className={`h-3.5 w-3.5 ${n <= rating ? 'fill-brand-400 text-brand-400' : 'text-slate-600'}`}
+          className={`h-3.5 w-3.5 ${n <= rating ? "fill-brand-400 text-brand-400" : "text-slate-600"}`}
         />
       ))}
       <span className="ml-1 text-xs text-slate-400">{rating.toFixed(1)}</span>
@@ -134,14 +110,20 @@ function StarRating({ rating }) {
 
 function Th({ children, className }) {
   return (
-    <th className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 ${className || ''}`}>
+    <th
+      className={`px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 ${className || ""}`}
+    >
       {children}
     </th>
   );
 }
 
 function Td({ children, className }) {
-  return <td className={`px-4 py-3.5 text-sm text-slate-200 ${className || ''}`}>{children}</td>;
+  return (
+    <td className={`px-4 py-3.5 text-sm text-slate-200 ${className || ""}`}>
+      {children}
+    </td>
+  );
 }
 
 export default function AdminPanel({ onBack }) {
@@ -168,8 +150,10 @@ export default function AdminPanel({ onBack }) {
       .then(([data, sum]) => {
         if (!active) return;
         setPayments(Array.isArray(data) ? data : []);
-        const revenue = parseFloat(sum?.total_revenue ?? sum?.totalRevenue ?? 0) || 0;
-        const pending = parseInt(sum?.pending_payments ?? sum?.pendingPayments ?? 0, 10) || 0;
+        const revenue =
+          parseFloat(sum?.total_revenue ?? sum?.totalRevenue ?? 0) || 0;
+        const pending =
+          parseInt(sum?.pending_payments ?? sum?.pendingPayments ?? 0, 10) || 0;
         setSummary({ totalRevenue: revenue, pendingPayments: pending });
       })
       .catch(() => {
@@ -224,13 +208,17 @@ export default function AdminPanel({ onBack }) {
     return {
       completedTasks,
       activeTasks,
-      avgRating: (feedback.reduce((s, f) => s + f.rating, 0) / feedback.length).toFixed(1),
+      avgRating: (feedback.length > 0 ? feedback.reduce((s, f) => s + f.rating, 0) / feedback.length : 0).toFixed(1),
     };
   }, []);
 
   const filter = (rows, fields) =>
     rows.filter((r) =>
-      fields.some((f) => String(r[f] ?? '').toLowerCase().includes(search.toLowerCase())),
+      fields.some((f) =>
+        String(r[f] ?? "")
+          .toLowerCase()
+          .includes(search.toLowerCase()),
+      ),
     );
 
   const allUserRows = filter(dbAllUsers, ['id', 'name', 'email', 'phone', 'location', 'role', 'trade']);
@@ -275,14 +263,14 @@ export default function AdminPanel({ onBack }) {
                 onClick={() => {
                   setTab(t.id);
                   setSidebarOpen(false);
-                  setSearch('');
+                  setSearch("");
                 }}
                 className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${active
                   ? 'border border-brand-400/30 bg-brand-500/10 text-white'
                   : 'border border-transparent text-slate-400 hover:bg-white/5 hover:text-white'
                   }`}
               >
-                <Icon className={`h-4 w-4 ${active ? 'text-brand-400' : ''}`} />
+                <Icon className={`h-4 w-4 ${active ? "text-brand-400" : ""}`} />
                 {t.label}
               </button>
             );
@@ -362,9 +350,9 @@ export default function AdminPanel({ onBack }) {
         <div className="flex-1 overflow-y-auto p-4 sm:p-6">
           {/* Stats row */}
           <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-6">
-            <StatCard icon={Users} label="Total Users" value={userSummary.total_users} sub="All accounts" accent="bg-indigo-500/15 text-indigo-300" />
-            <StatCard icon={Users} label="Clients" value={userSummary.total_clients} sub="Client accounts" accent="bg-sky-500/15 text-sky-300" />
-            <StatCard icon={HardHat} label="Workers" value={userSummary.total_workers} sub="Service providers" accent="bg-teal-500/15 text-teal-300" />
+            <StatCard icon={Users} label="Total Users" value={userSummary.total_users ?? 0} sub="All accounts" accent="bg-indigo-500/15 text-indigo-300" />
+            <StatCard icon={Users} label="Clients" value={userSummary.total_clients ?? 0} sub="Client accounts" accent="bg-sky-500/15 text-sky-300" />
+            <StatCard icon={HardHat} label="Workers" value={userSummary.total_workers ?? 0} sub="Service providers" accent="bg-teal-500/15 text-teal-300" />
             <StatCard icon={ClipboardList} label="Tasks Given" value={userSummary.tasks_given_users ?? 0} sub="By clients" accent="bg-amber-500/15 text-amber-300" />
             <StatCard icon={CheckCircle2} label="Tasks Done" value={userSummary.tasks_done_workers ?? 0} sub="By workers" accent="bg-emerald-500/15 text-emerald-300" />
             <StatCard icon={DollarSign} label="Total Revenue" value={`$${Number(summary.totalRevenue || 0).toLocaleString()}`} sub="From paid invoices" accent="bg-brand-500/15 text-brand-300" />
@@ -543,7 +531,10 @@ export default function AdminPanel({ onBack }) {
                   </thead>
                   <tbody className="divide-y divide-white/5">
                     {workerRows.map((w) => (
-                      <tr key={w.id} className="transition-colors hover:bg-white/5">
+                      <tr
+                        key={w.id}
+                        className="transition-colors hover:bg-white/5"
+                      >
                         <Td>
                           <div className="flex items-center gap-3">
                             <span className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-teal-500 to-teal-700 text-xs font-bold text-ink-950">
@@ -579,16 +570,25 @@ export default function AdminPanel({ onBack }) {
                 </table>
               )}
 
-              {tab === 'tasks' && (
+              {tab === "tasks" && (
                 <table className="w-full min-w-[720px]">
                   <thead className="border-b border-white/10 bg-white/5">
                     <tr>
-                      <Th>Task</Th><Th>Customer</Th><Th>Worker</Th><Th>Priority</Th><Th>Status</Th><Th>Due</Th><Th>Price</Th>
+                      <Th>Task</Th>
+                      <Th>Customer</Th>
+                      <Th>Worker</Th>
+                      <Th>Priority</Th>
+                      <Th>Status</Th>
+                      <Th>Due</Th>
+                      <Th>Price</Th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5">
                     {taskRows.map((t) => (
-                      <tr key={t.id} className="transition-colors hover:bg-white/5">
+                      <tr
+                        key={t.id}
+                        className="transition-colors hover:bg-white/5"
+                      >
                         <Td>
                           <p className="font-medium text-white">{t.title}</p>
                           <p className="text-xs text-slate-500">{t.id}</p>
@@ -596,11 +596,15 @@ export default function AdminPanel({ onBack }) {
                         <Td className="text-slate-300">{t.customer}</Td>
                         <Td className="text-slate-300">{t.worker}</Td>
                         <Td>
-                          <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${priorityStyles[t.priority]}`}>
+                          <span
+                            className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${priorityStyles[t.priority]}`}
+                          >
                             {t.priority}
                           </span>
                         </Td>
-                        <Td><Badge variant={t.status}>{t.status}</Badge></Td>
+                        <Td>
+                          <Badge variant={t.status}>{t.status}</Badge>
+                        </Td>
                         <Td className="text-slate-400">{t.due}</Td>
                         <Td className="font-semibold text-white">{t.price}</Td>
                       </tr>
@@ -609,23 +613,34 @@ export default function AdminPanel({ onBack }) {
                 </table>
               )}
 
-              {tab === 'feedback' && (
+              {tab === "feedback" && (
                 <table className="w-full min-w-[640px]">
                   <thead className="border-b border-white/10 bg-white/5">
                     <tr>
-                      <Th>Review</Th><Th>Customer</Th><Th>Worker</Th><Th>Rating</Th><Th>Date</Th>
+                      <Th>Review</Th>
+                      <Th>Customer</Th>
+                      <Th>Worker</Th>
+                      <Th>Rating</Th>
+                      <Th>Date</Th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5">
                     {feedbackRows.map((f) => (
-                      <tr key={f.id} className="transition-colors hover:bg-white/5">
+                      <tr
+                        key={f.id}
+                        className="transition-colors hover:bg-white/5"
+                      >
                         <Td>
                           <p className="max-w-xs text-slate-300">{f.comment}</p>
-                          <p className="mt-1 text-xs text-slate-500">{f.task} · {f.id}</p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            {f.task} · {f.id}
+                          </p>
                         </Td>
                         <Td className="text-slate-300">{f.customer}</Td>
                         <Td className="text-slate-300">{f.worker}</Td>
-                        <Td><StarRating rating={f.rating} /></Td>
+                        <Td>
+                          <StarRating rating={f.rating} />
+                        </Td>
                         <Td className="text-slate-400">{f.date}</Td>
                       </tr>
                     ))}
@@ -633,7 +648,7 @@ export default function AdminPanel({ onBack }) {
                 </table>
               )}
 
-              {tab === 'payments' && (
+              {tab === "payments" && (
                 <>
                   <div className="mb-4 flex flex-wrap items-center gap-2">
                     <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Top by amount:</span>
@@ -706,7 +721,19 @@ export default function AdminPanel({ onBack }) {
           {/* Export bar */}
           <div className="mt-4 flex items-center justify-between">
             <p className="text-xs text-slate-500">
-              Showing {tab === 'customers' ? customerRows.length : tab === 'workers' ? workerRows.length : tab === 'tasks' ? taskRows.length : tab === 'feedback' ? feedbackRows.length : paymentRows.length} records
+              Showing{" "}
+              {tab === "all_users"
+                ? allUserRows.length
+                : tab === "clients"
+                  ? clientRows.length
+                  : tab === "workers"
+                    ? workerRows.length
+                    : tab === "tasks"
+                      ? taskRows.length
+                      : tab === "feedback"
+                        ? feedbackRows.length
+                        : paymentRows.length}{" "}
+              records
             </p>
             <button className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-medium text-slate-300 transition-colors hover:border-brand-400/40 hover:text-white">
               <Download className="h-3.5 w-3.5" />
