@@ -9,6 +9,7 @@ use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\TaskApplicationController;
 use App\Http\Controllers\TaskController;
+use App\Http\Controllers\UserManagementController;
 use App\Http\Controllers\VerificationController;
 use App\Http\Controllers\WorkerController;
 use Illuminate\Support\Facades\Route;
@@ -62,6 +63,14 @@ Route::post('/complaints', [ComplaintController::class, 'store']);
 Route::middleware('auth:sanctum')->get('/payments', [PaymentController::class, 'index']);
 Route::middleware('auth:sanctum')->get('/payments/summary', [PaymentController::class, 'summary']);
 Route::middleware('auth:sanctum')->post('/payments/{task}/sslcommerz/initiate', [PaymentController::class, 'initiate']);
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/admin/users/summary', [UserManagementController::class, 'summary']);
+    Route::get('/admin/users/all', [UserManagementController::class, 'allUsers']);
+    Route::get('/admin/users/clients', [UserManagementController::class, 'clients']);
+    Route::get('/admin/users/customers', [UserManagementController::class, 'customers']);
+    Route::get('/admin/users/workers', [UserManagementController::class, 'workers']);
+});
 
 Route::get('/tasks', [TaskController::class, 'index']);
 Route::post('/tasks', [TaskController::class, 'store']);
