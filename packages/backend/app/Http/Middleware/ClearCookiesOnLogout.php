@@ -19,8 +19,13 @@ class ClearCookiesOnLogout
     {
         $response = $next($request);
 
-        // Check if current user is logged in AND email-verified
-        $isVerifiedAndAuthenticated = Auth::check() && Auth::user()?->hasVerifiedEmail();
+        // Check if current user is logged in AND email-verified.
+        // Guard against raw objects / non-email-verified models that do not define this method.
+        $currentUser = Auth::user();
+        $isVerifiedAndAuthenticated = Auth::check()
+            && is_object($currentUser)
+            && method_exists($currentUser, 'hasVerifiedEmail')
+            && $currentUser->hasVerifiedEmail();
 
         if (!$isVerifiedAndAuthenticated) {
             $cookiePath = config('session.path', '/');

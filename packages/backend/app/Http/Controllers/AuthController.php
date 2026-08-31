@@ -31,6 +31,15 @@ class AuthController extends Controller
         return $user;
     }
 
+    private function userHasVerifiedEmail($user): bool
+    {
+        if (!is_object($user) || !method_exists($user, 'hasVerifiedEmail')) {
+            return false;
+        }
+
+        return (bool) $user->hasVerifiedEmail();
+    }
+
     private function clearCookies(JsonResponse $response, Request $request): JsonResponse
     {
         Auth::guard('web')->logout();
@@ -60,12 +69,12 @@ class AuthController extends Controller
         $expertise = $request->input('expertise');
 
         $hashed = Hash::make($password);
-        $expertiseJson = json_encode($role === 'worker' ? ($expertise ?? []) : null);
-        $expertiseSql = $role === 'worker' ? "'$expertiseJson'" : 'NULL';
+        $expertiseJson = $role === 'worker' ? json_encode($expertise ?? []) : null;
 
         DB::insert(
             "INSERT INTO [users] ([name], [email], [password], [role], [phone], [location], [expertise], [created_at], [updated_at])
-             VALUES ('$name', '$email', '$hashed', '$role', '$phone', '$location', $expertiseSql, GETDATE(), GETDATE())"
+             VALUES (?, ?, ?, ?, ?, ?, ?, GETDATE(), GETDATE())",
+            [$name, $email, $hashed, $role, $phone, $location, $expertiseJson]
         );
 
         $id = DB::getPdo()->lastInsertId();
@@ -104,49 +113,73 @@ class AuthController extends Controller
         $email = $request->input('email');
         $password = $request->input('password');
 
-        $rows = DB::select("SELECT * FROM [users] WHERE [email] = '$email'");
+        if (!$email || !$password) {
+            return response()->json([
+                'message' => 'Email and password are required.',
+                'errors' => [
+                    'email' => !$email ? ['Email is required.'] : [],
+                    'password' => !$password ? ['Password is required.'] : [],
+                ],
+            ], 422);
+        }
+
+        $rows = DB::select("SELECT * FROM [users] WHERE [email] = ?", [$email]);
         $userRow = $rows[0] ?? null;
 
         if (!$userRow || !Hash::check($password, $userRow->password)) {
-            return $this->clearCookies(
-                response()->json([
-                    'message' => 'The provided credentials do not match our records.',
-                    'errors' => [
-                        'email' => ['The provided credentials do not match our records.'],
-                    ],
-                ], 422),
-                $request
-            );
+            return response()->json([
+                'message' => 'The provided credentials do not match our records.',
+                'errors' => [
+                    'email' => ['The provided credentials do not match our records.'],
+                ],
+            ], 422);
         }
 
         $user = $this->hydrateUser($userRow);
 
-        if (!$user->hasVerifiedEmail()) {
-            return $this->clearCookies(
-                response()->json([
-                    'message' => 'Your email address is not verified. Please check your inbox for the verification link.',
-                    'requires_verification' => true,
-                    'email' => $userRow->email,
-                    'errors' => [
-                        'email' => ['Your email address is not verified.'],
-                    ],
-                ], 403),
-                $request
-            );
+        if (!$this->userHasVerifiedEmail($user)) {
+            return response()->json([
+                'message' => 'Your email address is not verified. Please check your inbox for the verification link.',
+                'requires_verification' => true,
+                'email' => $userRow->email,
+                'errors' => [
+                    'email' => ['Your email address is not verified.'],
+                ],
+            ], 403);
         }
 
         $remember = $request->boolean('remember');
         Auth::guard('web')->login($user, $remember);
         $request->session()->regenerate();
 
+        // Generate Sanctum token for API access
+        try {
+            $token = $user->createToken('auth_token')->plainTextToken;
+        } catch (\Throwable $e) {
+            Log::warning('Failed to create Sanctum token: ' . $e->getMessage());
+            $token = null;
+        }
+
         return response()->json([
             'message' => 'Login successful',
             'user' => $user,
-        ]);
+            'token' => $token,
+        ], 200);
     }
 
     public function logout(Request $request): JsonResponse
     {
+        $user = $request->user();
+        
+        // Revoke Sanctum token if using API authentication
+        if ($user) {
+            try {
+                $user->currentAccessToken()->delete();
+            } catch (\Throwable $e) {
+                Log::debug('Token revocation not needed: ' . $e->getMessage());
+            }
+        }
+
         return $this->clearCookies(
             response()->json([
                 'message' => 'Logged out successfully',
@@ -169,7 +202,7 @@ class AuthController extends Controller
             );
         }
 
-        $rows = DB::select("SELECT * FROM [users] WHERE [email] = '$email'");
+        $rows = DB::select("SELECT * FROM [users] WHERE [email] = ?", [$email]);
         $userRow = $rows[0] ?? null;
 
         if (!$userRow) {
@@ -184,18 +217,19 @@ class AuthController extends Controller
         }
 
         $user = $this->hydrateUser($userRow);
+        $isVerified = $this->userHasVerifiedEmail($user);
 
         $res = response()->json([
             'exists' => true,
-            'verified' => $user->hasVerifiedEmail(),
+            'verified' => $isVerified,
             'name' => $userRow->name,
             'role' => $userRow->role,
-            'message' => $user->hasVerifiedEmail()
+            'message' => $isVerified
                 ? 'Account verified and active.'
                 : 'Email verification is pending.',
         ]);
 
-        if (!Auth::check() || !Auth::user()->hasVerifiedEmail()) {
+        if (!Auth::check() || !$this->userHasVerifiedEmail(Auth::user())) {
             return $this->clearCookies($res, $request);
         }
 
@@ -204,45 +238,65 @@ class AuthController extends Controller
 
     public function me(Request $request): JsonResponse
     {
-        $user = $request->user();
+        try {
+            $user = $request->user();
 
-        if (!$user || !$user->hasVerifiedEmail()) {
-            return $this->clearCookies(
-                response()->json([
+            if (!$user || !$this->userHasVerifiedEmail($user)) {
+                return response()->json([
                     'user' => null,
-                ]),
-                $request
-            );
-        }
+                    'message' => 'Not authenticated or email not verified',
+                ], 401);
+            }
 
-        return response()->json([
-            'user' => $user,
-        ]);
+            return response()->json([
+                'user' => $user,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Failed to fetch user: ' . $e->getMessage());
+            return response()->json([
+                'user' => null,
+                'message' => 'Failed to fetch user',
+            ], 401);
+        }
     }
 
     public function updateProfile(Request $request): JsonResponse
     {
         $user = $request->user();
-        $userId = $user->id;
+        if (!$user) {
+            return response()->json([
+                'message' => 'Unauthorized',
+                'errors' => ['auth' => ['Not authenticated']],
+            ], 401);
+        }
 
+        $userId = $user->id;
         $name = $request->input('name');
         $phone = $request->input('phone');
         $location = $request->input('location');
         $expertise = $request->input('expertise');
 
-        $expertiseJson = json_encode($user->role === 'worker' ? ($expertise ?? []) : null);
-        $expertiseSql = $user->role === 'worker' ? "'$expertiseJson'" : 'NULL';
+        $expertiseJson = $user->role === 'worker' ? json_encode($expertise ?? []) : null;
 
-        DB::update(
-            "UPDATE [users] SET [name] = '$name', [phone] = '$phone', [location] = '$location', [expertise] = $expertiseSql, [updated_at] = GETDATE() WHERE [id] = $userId"
-        );
+        try {
+            DB::update(
+                "UPDATE [users] SET [name] = ?, [phone] = ?, [location] = ?, [expertise] = ?, [updated_at] = GETDATE() WHERE [id] = ?",
+                [$name, $phone, $location, $expertiseJson, $userId]
+            );
 
-        $rows = DB::select("SELECT * FROM [users] WHERE [id] = $userId");
-        $updated = $rows[0] ?? null;
+            $rows = DB::select("SELECT * FROM [users] WHERE [id] = ?", [$userId]);
+            $updated = $rows[0] ?? null;
 
-        return response()->json([
-            'message' => 'Profile updated.',
-            'user' => $updated ? $this->hydrateUser($updated) : $user,
-        ]);
+            return response()->json([
+                'message' => 'Profile updated.',
+                'user' => $updated ? $this->hydrateUser($updated) : $user,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Profile update failed: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Failed to update profile.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
 }
