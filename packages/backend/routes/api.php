@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AccountController;
+use App\Http\Controllers\AdminTaskController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\ComplaintController;
@@ -9,6 +10,7 @@ use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\TaskApplicationController;
 use App\Http\Controllers\TaskController;
+use App\Http\Controllers\UserManagementController;
 use App\Http\Controllers\VerificationController;
 use App\Http\Controllers\WorkerController;
 use Illuminate\Support\Facades\Route;
@@ -63,9 +65,29 @@ Route::middleware('auth:sanctum')->get('/payments', [PaymentController::class, '
 Route::middleware('auth:sanctum')->get('/payments/summary', [PaymentController::class, 'summary']);
 Route::middleware('auth:sanctum')->post('/payments/{task}/sslcommerz/initiate', [PaymentController::class, 'initiate']);
 
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/admin/users/summary', [UserManagementController::class, 'summary']);
+    Route::get('/admin/users/all', [UserManagementController::class, 'allUsers']);
+    Route::get('/admin/users/clients', [UserManagementController::class, 'clients']);
+    Route::get('/admin/users/customers', [UserManagementController::class, 'customers']);
+    Route::get('/admin/users/workers', [UserManagementController::class, 'workers']);
+});
+
 Route::get('/tasks', [TaskController::class, 'index']);
 Route::post('/tasks', [TaskController::class, 'store']);
 Route::get('/tasks/{task}', [TaskController::class, 'show']);
 
 Route::get('/workers', [WorkerController::class, 'index']);
 Route::get('/workers/{worker}', [WorkerController::class, 'show']);
+
+// Admin Panel Routes (Protected with auth:sanctum middleware)
+Route::middleware(['auth:sanctum'])->prefix('admin')->group(function () {
+    Route::get('/feedback', [FeedbackController::class, 'adminIndex']);
+
+    // Task management with advanced analytics
+    Route::get('/tasks', [AdminTaskController::class, 'index']);
+    Route::get('/tasks/statistics', [AdminTaskController::class, 'taskStatistics']);
+    Route::get('/tasks/priority', [AdminTaskController::class, 'highPriorityTasks']);
+    Route::get('/tasks/applications', [AdminTaskController::class, 'tasksWithApplicationAnalytics']);
+    Route::get('/tasks/comparison', [AdminTaskController::class, 'tasksVsCategoryAverage']);
+});

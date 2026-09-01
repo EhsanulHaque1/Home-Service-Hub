@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { useAuth } from '@/context/AuthContext';
+import { useEffect, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
 import {
   Wrench,
   Sparkles,
@@ -18,73 +18,146 @@ import {
   Check,
   CheckCircle2,
   X,
-} from 'lucide-react';
+} from "lucide-react";
 
 const categories = [
-  { id: 'plumbing', name: 'Plumbing', icon: Wrench, tagline: 'Leaks, fittings & fixtures', tasks: 1284, accent: 'from-sky-500/20 to-sky-500/5' },
-  { id: 'cleaning', name: 'Cleaning', icon: Sparkles, tagline: 'Maidens & deep cleans', tasks: 2103, accent: 'from-teal-500/20 to-teal-500/5' },
-  { id: 'electrical', name: 'Electrical', icon: Zap, tagline: 'Wiring, switches & repairs', tasks: 967, accent: 'from-brand-500/20 to-brand-500/5' },
+  {
+    id: "plumbing",
+    name: "Plumbing",
+    icon: Wrench,
+    tagline: "Leaks, fittings & fixtures",
+    tasks: 1284,
+    accent: "from-sky-500/20 to-sky-500/5",
+  },
+  {
+    id: "cleaning",
+    name: "Cleaning",
+    icon: Sparkles,
+    tagline: "Maidens & deep cleans",
+    tasks: 2103,
+    accent: "from-teal-500/20 to-teal-500/5",
+  },
+  {
+    id: "electrical",
+    name: "Electrical",
+    icon: Zap,
+    tagline: "Wiring, switches & repairs",
+    tasks: 967,
+    accent: "from-brand-500/20 to-brand-500/5",
+  },
 ];
 
-const liveTasks = [
-  { id: 't1', title: 'Kitchen sink leaking under cabinet', category: 'Plumbing', budget: 85, location: 'Downtown, 2.1 mi', posted: '4 min ago', status: 'open' },
-  { id: 't2', title: 'Full apartment deep clean (2BR)', category: 'Cleaning', budget: 140, location: 'Riverside, 5.4 mi', posted: '11 min ago', status: 'matching' },
-  { id: 't3', title: 'Replace two faulty light switches', category: 'Electrical', budget: 60, location: 'Old Town, 1.8 mi', posted: '22 min ago', status: 'open' },
-];
+const liveTasks = [];
 
-const topWorkers = [
-  { id: 'w1', name: 'Marcus Reed', trade: 'Plumber', rating: 4.9, jobs: 312, rate: '$45/hr', initials: 'MR', badge: 'top' },
-  { id: 'w2', name: 'Aisha Bello', trade: 'Maiden', rating: 5.0, jobs: 428, rate: '$30/hr', initials: 'AB', badge: 'verified' },
-  { id: 'w3', name: 'Diego Torres', trade: 'Electrician', rating: 4.8, jobs: 207, rate: '$55/hr', initials: 'DT', badge: 'top' },
-];
+const topWorkers = [];
 
 const stepsCustomer = [
-  { n: '01', title: 'Post your task', desc: 'Describe what you need, set your budget, and pick a time. It takes under a minute.' },
-  { n: '02', title: 'Get matched', desc: 'Nearby workers in the right category see your task and apply if interested.' },
-  { n: '03', title: 'Track the work', desc: 'Chat, confirm arrival, and follow progress until the job is done.' },
-  { n: '04', title: 'Pay securely', desc: 'Release direct payment through HomeServiceHub once you are satisfied.' },
+  {
+    n: "01",
+    title: "Post your task",
+    desc: "Describe what you need, set your budget, and pick a time. It takes under a minute.",
+  },
+  {
+    n: "02",
+    title: "Get matched",
+    desc: "Nearby workers in the right category see your task and apply if interested.",
+  },
+  {
+    n: "03",
+    title: "Track the work",
+    desc: "Chat, confirm arrival, and follow progress until the job is done.",
+  },
+  {
+    n: "04",
+    title: "Pay securely",
+    desc: "Release direct payment through HomeServiceHub once you are satisfied.",
+  },
 ];
 
 const stepsWorker = [
-  { n: '01', title: 'Build your profile', desc: 'Add your trade, service area, hourly rate, and availability.' },
-  { n: '02', title: 'Browse open tasks', desc: 'See live tasks in your category filtered by distance and budget.' },
-  { n: '03', title: 'Apply with one tap', desc: 'Send a quick offer to the tasks that fit your schedule.' },
-  { n: '04', title: 'Get paid fast', desc: 'Direct payment lands in your wallet the moment a task completes.' },
+  {
+    n: "01",
+    title: "Build your profile",
+    desc: "Add your trade, service area, hourly rate, and availability.",
+  },
+  {
+    n: "02",
+    title: "Browse open tasks",
+    desc: "See live tasks in your category filtered by distance and budget.",
+  },
+  {
+    n: "03",
+    title: "Apply with one tap",
+    desc: "Send a quick offer to the tasks that fit your schedule.",
+  },
+  {
+    n: "04",
+    title: "Get paid fast",
+    desc: "Direct payment lands in your wallet the moment a task completes.",
+  },
 ];
 
 const testimonials = [
-  { quote: 'I posted a burst pipe at 7am and had a plumber at my door by 9. Payment through the app meant no awkward haggling.', name: 'Priya Shankar', role: 'Homeowner', initials: 'PS' },
-  { quote: 'As an electrician, my schedule used to be feast or famine. Now I open the app, pick the jobs I want, and get paid same day.', name: 'Diego Torres', role: 'Electrician', initials: 'DT' },
-  { quote: 'Cleaning three apartments a week through HomeServiceHub replaced my old agency income. The ratings keep me booked.', name: 'Aisha Bello', role: 'Maiden', initials: 'AB' },
+  {
+    quote:
+      "I posted a burst pipe at 7am and had a plumber at my door by 9. Payment through the app meant no awkward haggling.",
+    name: "Priya Shankar",
+    role: "Homeowner",
+    initials: "PS",
+  },
+  {
+    quote:
+      "As an electrician, my schedule used to be feast or famine. Now I open the app, pick the jobs I want, and get paid same day.",
+    name: "Diego Torres",
+    role: "Electrician",
+    initials: "DT",
+  },
+  {
+    quote:
+      "Cleaning three apartments a week through HomeServiceHub replaced my old agency income. The ratings keep me booked.",
+    name: "Aisha Bello",
+    role: "Maiden",
+    initials: "AB",
+  },
 ];
 
 const stats = [
-  { label: 'Tasks completed', value: '48K+' },
-  { label: 'Verified workers', value: '6,200' },
-  { label: 'Avg. match time', value: '23 min' },
-  { label: 'Paid out to workers', value: '$3.1M' },
+  { label: "Tasks completed", value: "48K+" },
+  { label: "Verified workers", value: "6,200" },
+  { label: "Avg. match time", value: "23 min" },
+  { label: "Paid out to workers", value: "$3.1M" },
 ];
 
 const trustBadges = [
-  { icon: ShieldCheck, label: 'Background-checked workers' },
-  { icon: Star, label: 'Ratings on every job' },
-  { icon: Zap, label: 'Direct, instant payment' },
+  { icon: ShieldCheck, label: "Background-checked workers" },
+  { icon: Star, label: "Ratings on every job" },
+  { icon: Zap, label: "Direct, instant payment" },
 ];
 
 const badgeMap = {
-  top: { label: 'Top rated', cls: 'bg-brand-500/15 text-brand-300 border-brand-500/20' },
-  verified: { label: 'Verified', cls: 'bg-teal-500/15 text-teal-300 border-teal-500/20' },
-  new: { label: 'New', cls: 'bg-sky-500/15 text-sky-300 border-sky-500/20' },
+  top: {
+    label: "Top rated",
+    cls: "bg-brand-500/15 text-brand-300 border-brand-500/20",
+  },
+  verified: {
+    label: "Verified",
+    cls: "bg-teal-500/15 text-teal-300 border-teal-500/20",
+  },
+  new: { label: "New", cls: "bg-sky-500/15 text-sky-300 border-sky-500/20" },
 };
 
 const statusStyles = {
-  open: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/20',
-  matching: 'bg-brand-500/15 text-brand-300 border-brand-500/20',
+  open: "bg-emerald-500/15 text-emerald-300 border-emerald-500/20",
+  matching: "bg-brand-500/15 text-brand-300 border-brand-500/20",
 };
 
-const rotating = ['plumber', 'maiden', 'electrician'];
+const rotating = ["plumber", "maiden", "electrician"];
 
-const perks = ['No subscription', 'Pay only when a job is done', 'Cancel a task anytime'];
+const perks = [
+  "No subscription",
+  "Pay only when a job is done",
+  "Cancel a task anytime",
+];
 
 function Hero() {
   const { user } = useAuth();
@@ -95,16 +168,18 @@ function Hero() {
     return () => clearInterval(t);
   }, []);
 
-  const firstName = user?.name?.split(' ')[0];
-  const isWorker = user?.role === 'worker';
-  const isClient = user?.role === 'client';
+  const firstName = user?.name?.split(" ")[0];
+  const isWorker = user?.role === "worker";
+  const isClient = user?.role === "client";
 
-  const eyebrow = user ? `Welcome back, ${firstName}` : 'Live marketplace for home services';
+  const eyebrow = user
+    ? `Welcome back, ${firstName}`
+    : "Live marketplace for home services";
   const subtitle = isWorker
-    ? 'Browse live tasks in your expertise, apply in one tap, and get paid the moment a job completes.'
+    ? "Browse live tasks in your expertise, apply in one tap, and get paid the moment a job completes."
     : isClient
-      ? 'Post a new task, track the ones already in progress, and pay securely the moment each job is done.'
-      : 'Post your task, get matched with nearby workers, and pay securely the moment the job is done. No phone tag, no cash, no surprises.';
+      ? "Post a new task, track the ones already in progress, and pay securely the moment each job is done."
+      : "Post your task, get matched with nearby workers, and pay securely the moment the job is done. No phone tag, no cash, no surprises.";
 
   return (
     <section id="top" className="relative overflow-hidden pt-28 pb-20 sm:pt-36">
@@ -124,17 +199,19 @@ function Hero() {
             </span>
 
             <h1 className="mt-6 font-display text-4xl font-800 leading-[1.05] tracking-tight text-white sm:text-5xl lg:text-6xl">
-              Find a trusted{' '}
-                <span className="relative inline-block">
-                  <span className="text-gradient inline-block animate-fade-up">
-                    {rotating[idx]}
-                  </span>
+              Find a trusted{" "}
+              <span className="relative inline-block">
+                <span className="text-gradient inline-block animate-fade-up">
+                  {rotating[idx]}
                 </span>
+              </span>
               <br />
               in minutes, not days.
             </h1>
 
-            <p className="mt-6 max-w-xl text-lg leading-relaxed text-slate-300">{subtitle}</p>
+            <p className="mt-6 max-w-xl text-lg leading-relaxed text-slate-300">
+              {subtitle}
+            </p>
 
             <div className="mt-8 flex flex-wrap items-center gap-3">
               {isWorker ? (
@@ -172,7 +249,10 @@ function Hero() {
 
             <div className="mt-10 flex flex-wrap gap-x-6 gap-y-3">
               {trustBadges.map((b) => (
-                <div key={b.label} className="flex items-center gap-2 text-sm text-slate-400">
+                <div
+                  key={b.label}
+                  className="flex items-center gap-2 text-sm text-slate-400"
+                >
                   <b.icon className="h-4 w-4 text-brand-400" />
                   {b.label}
                 </div>
@@ -191,26 +271,33 @@ function Hero() {
                 <span className="text-xs text-slate-400">Posted 4 min ago</span>
               </div>
 
-              <h3 className="mt-4 font-display text-lg font-700 text-white">Kitchen sink leaking under cabinet</h3>
+              <h3 className="mt-4 font-display text-lg font-700 text-white">
+                Kitchen sink leaking under cabinet
+              </h3>
               <div className="mt-2 flex items-center gap-1.5 text-sm text-slate-400">
-                <MapPin className="h-4 w-4 text-brand-400" /> Downtown · 2.1 mi away
+                <MapPin className="h-4 w-4 text-brand-400" /> Downtown · 2.1 mi
+                away
               </div>
 
               <div className="mt-5 rounded-xl border border-white/10 bg-ink-900 p-4">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-slate-400">Budget</span>
-                  <span className="font-display text-2xl font-700 text-white">$85</span>
+                  <span className="font-display text-2xl font-700 text-white">
+                    $85
+                  </span>
                 </div>
                 <div className="mt-3 h-2 overflow-hidden rounded-full bg-ink-700">
                   <div className="h-full w-3/4 rounded-full bg-gradient-to-r from-brand-500 to-brand-300" />
                 </div>
-                <p className="mt-2 text-xs text-slate-400">3 plumbers viewing · 1 offer placed</p>
+                <p className="mt-2 text-xs text-slate-400">
+                  3 plumbers viewing · 1 offer placed
+                </p>
               </div>
 
               <div className="mt-5 space-y-3">
                 {[
-                  { n: 'Marcus R.', r: 4.9, d: '2.1 mi', s: 'Available now' },
-                  { n: 'Sofia L.', r: 4.7, d: '3.4 mi', s: 'Available in 1h' },
+                  { n: "Marcus R.", r: 4.9, d: "2.1 mi", s: "Available now" },
+                  { n: "Sofia L.", r: 4.7, d: "3.4 mi", s: "Available in 1h" },
                 ].map((w) => (
                   <div
                     key={w.n}
@@ -218,12 +305,18 @@ function Hero() {
                   >
                     <div className="flex items-center gap-3">
                       <span className="grid h-10 w-10 place-items-center rounded-full bg-gradient-to-br from-brand-500 to-brand-700 text-sm font-bold text-ink-950">
-                        {w.n.split(' ').map((p) => p[0]).join('')}
+                        {w.n
+                          .split(" ")
+                          .map((p) => p[0])
+                          .join("")}
                       </span>
                       <div>
-                        <p className="text-sm font-semibold text-white">{w.n}</p>
+                        <p className="text-sm font-semibold text-white">
+                          {w.n}
+                        </p>
                         <div className="flex items-center gap-1 text-xs text-slate-400">
-                          <Star className="h-3 w-3 fill-brand-400 text-brand-400" /> {w.r} · {w.d}
+                          <Star className="h-3 w-3 fill-brand-400 text-brand-400" />{" "}
+                          {w.r} · {w.d}
                         </div>
                       </div>
                     </div>
@@ -243,8 +336,12 @@ function Hero() {
               <div className="flex items-center gap-2">
                 <ShieldCheck className="h-5 w-5 text-teal-400" />
                 <div>
-                  <p className="text-xs font-semibold text-white">Payment held securely</p>
-                  <p className="text-[11px] text-slate-400">Released when you approve</p>
+                  <p className="text-xs font-semibold text-white">
+                    Payment held securely
+                  </p>
+                  <p className="text-[11px] text-slate-400">
+                    Released when you approve
+                  </p>
                 </div>
               </div>
             </div>
@@ -261,7 +358,9 @@ function Stats() {
       <div className="container-x grid grid-cols-2 gap-px overflow-hidden rounded-none lg:grid-cols-4">
         {stats.map((s) => (
           <div key={s.label} className="px-6 py-8 text-center">
-            <p className="font-display text-3xl font-800 text-white sm:text-4xl">{s.value}</p>
+            <p className="font-display text-3xl font-800 text-white sm:text-4xl">
+              {s.value}
+            </p>
             <p className="mt-1.5 text-sm text-slate-400">{s.label}</p>
           </div>
         ))}
@@ -280,7 +379,8 @@ function Services() {
             Whatever needs fixing, there's a worker for that.
           </h2>
           <p className="mt-4 text-slate-300">
-            Browse the trades our workers cover. Each category is a live queue of tasks waiting to be claimed.
+            Browse the trades our workers cover. Each category is a live queue
+            of tasks waiting to be claimed.
           </p>
         </div>
 
@@ -290,10 +390,12 @@ function Services() {
               key={c.id}
               to={`/tasks?category=${encodeURIComponent(c.name)}`}
               className={`card group relative overflow-hidden p-6 hover:-translate-y-1 hover:border-brand-400/40 hover:shadow-card ${
-                i === 0 ? 'lg:row-span-1' : ''
+                i === 0 ? "lg:row-span-1" : ""
               }`}
             >
-              <div className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${c.accent} opacity-0 transition-opacity duration-300 group-hover:opacity-100`} />
+              <div
+                className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${c.accent} opacity-0 transition-opacity duration-300 group-hover:opacity-100`}
+              />
               <div className="relative flex items-start justify-between">
                 <span className="grid h-12 w-12 place-items-center rounded-xl border border-white/10 bg-white/5 text-brand-400 transition-colors group-hover:bg-brand-500 group-hover:text-ink-950">
                   <c.icon className="h-6 w-6" strokeWidth={2} />
@@ -302,8 +404,12 @@ function Services() {
                   {c.tasks.toLocaleString()} tasks
                 </span>
               </div>
-              <h3 className="relative mt-5 font-display text-xl font-700 text-white">{c.name}</h3>
-              <p className="relative mt-1.5 text-sm text-slate-400">{c.tagline}</p>
+              <h3 className="relative mt-5 font-display text-xl font-700 text-white">
+                {c.name}
+              </h3>
+              <p className="relative mt-1.5 text-sm text-slate-400">
+                {c.tagline}
+              </p>
               <div className="relative mt-5 flex items-center gap-1.5 text-sm font-semibold text-brand-300 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
                 Browse tasks <ArrowRight className="h-4 w-4" />
               </div>
@@ -317,12 +423,12 @@ function Services() {
 
 function HowItWorks() {
   const { user } = useAuth();
-  const [role, setRole] = useState('customer');
+  const [role, setRole] = useState("customer");
   const [touched, setTouched] = useState(false);
 
   // Default to the signed-in user's own role once it loads, unless they've already toggled it themselves.
   useEffect(() => {
-    if (!touched && user?.role === 'worker') setRole('worker');
+    if (!touched && user?.role === "worker") setRole("worker");
   }, [user, touched]);
 
   const selectRole = (r) => {
@@ -330,7 +436,7 @@ function HowItWorks() {
     setTouched(true);
   };
 
-  const steps = role === 'customer' ? stepsCustomer : stepsWorker;
+  const steps = role === "customer" ? stepsCustomer : stepsWorker;
 
   return (
     <section id="how" className="relative py-20 sm:py-28">
@@ -343,23 +449,28 @@ function HowItWorks() {
               Two sides of the same seamless flow.
             </h2>
             <p className="mt-4 text-slate-300">
-              Whether you need something fixed or you fix things for a living, HomeServiceHub keeps it simple.
+              Whether you need something fixed or you fix things for a living,
+              HomeServiceHub keeps it simple.
             </p>
           </div>
 
           <div className="inline-flex rounded-full border border-white/10 bg-ink-850 p-1">
             <button
-              onClick={() => selectRole('customer')}
+              onClick={() => selectRole("customer")}
               className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-all ${
-                role === 'customer' ? 'bg-brand-500 text-ink-950 shadow-glow' : 'text-slate-300 hover:text-white'
+                role === "customer"
+                  ? "bg-brand-500 text-ink-950 shadow-glow"
+                  : "text-slate-300 hover:text-white"
               }`}
             >
               <User className="h-4 w-4" /> Customer
             </button>
             <button
-              onClick={() => selectRole('worker')}
+              onClick={() => selectRole("worker")}
               className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-all ${
-                role === 'worker' ? 'bg-brand-500 text-ink-950 shadow-glow' : 'text-slate-300 hover:text-white'
+                role === "worker"
+                  ? "bg-brand-500 text-ink-950 shadow-glow"
+                  : "text-slate-300 hover:text-white"
               }`}
             >
               <Wrench className="h-4 w-4" /> Worker
@@ -380,8 +491,12 @@ function HowItWorks() {
                 </span>
                 <span className="h-8 w-8 rounded-full border border-brand-400/30 bg-brand-500/10" />
               </div>
-              <h3 className="mt-4 font-display text-lg font-700 text-white">{s.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-slate-400">{s.desc}</p>
+              <h3 className="mt-4 font-display text-lg font-700 text-white">
+                {s.title}
+              </h3>
+              <p className="mt-2 text-sm leading-relaxed text-slate-400">
+                {s.desc}
+              </p>
             </div>
           ))}
         </div>
@@ -435,18 +550,22 @@ function LiveTasks() {
                   </div>
                 </div>
 
-                <span className="hidden text-sm text-slate-300 md:block">{t.category}</span>
+                <span className="hidden text-sm text-slate-300 md:block">
+                  {t.category}
+                </span>
 
                 <span className="hidden items-center gap-1.5 text-sm text-slate-400 md:flex">
                   <MapPin className="h-4 w-4 text-brand-400" /> {t.location}
                 </span>
 
                 <div className="flex items-center justify-between md:block">
-                  <span className="font-display text-lg font-700 text-white">${t.budget}</span>
+                  <span className="font-display text-lg font-700 text-white">
+                    ${t.budget}
+                  </span>
                   <span
                     className={`rounded-full border px-2.5 py-1 text-xs font-medium ${statusStyles[t.status]}`}
                   >
-                    {t.status === 'open' ? 'Open' : 'Matching'}
+                    {t.status === "open" ? "Open" : "Matching"}
                   </span>
                 </div>
 
@@ -478,8 +597,8 @@ function Workers() {
               Rated by neighbors. Vetted by us.
             </h2>
             <p className="mt-4 text-slate-300">
-              Every worker is background-checked and rated on every job. These are the pros your neighbors keep
-              calling back.
+              Every worker is background-checked and rated on every job. These
+              are the pros your neighbors keep calling back.
             </p>
           </div>
           <Link to="/workers" className="btn-ghost shrink-0">
@@ -491,26 +610,37 @@ function Workers() {
           {topWorkers.map((w) => {
             const b = badgeMap[w.badge];
             return (
-              <div key={w.id} className="card group p-6 hover:-translate-y-1 hover:border-brand-400/40 hover:shadow-card">
+              <div
+                key={w.id}
+                className="card group p-6 hover:-translate-y-1 hover:border-brand-400/40 hover:shadow-card"
+              >
                 <div className="flex items-center justify-between">
                   <span className="grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 font-display text-lg font-800 text-ink-950">
                     {w.initials}
                   </span>
-                  <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${b.cls}`}>
+                  <span
+                    className={`rounded-full border px-2.5 py-1 text-xs font-medium ${b.cls}`}
+                  >
                     {b.label}
                   </span>
                 </div>
 
-                <h3 className="mt-4 font-display text-lg font-700 text-white">{w.name}</h3>
+                <h3 className="mt-4 font-display text-lg font-700 text-white">
+                  {w.name}
+                </h3>
                 <p className="text-sm text-slate-400">{w.trade}</p>
 
                 <div className="mt-4 flex items-center justify-between border-t border-white/10 pt-4">
                   <div className="flex items-center gap-1.5">
                     <Star className="h-4 w-4 fill-brand-400 text-brand-400" />
                     <span className="font-semibold text-white">{w.rating}</span>
-                    <span className="text-xs text-slate-500">({w.jobs} jobs)</span>
+                    <span className="text-xs text-slate-500">
+                      ({w.jobs} jobs)
+                    </span>
                   </div>
-                  <span className="text-sm font-semibold text-brand-300">{w.rate}</span>
+                  <span className="text-sm font-semibold text-brand-300">
+                    {w.rate}
+                  </span>
                 </div>
 
                 <Link
@@ -553,7 +683,9 @@ function Testimonials() {
               style={{ animationDelay: `${i * 90}ms` }}
             >
               <Quote className="h-8 w-8 text-brand-500/40" />
-              <blockquote className="mt-4 flex-1 text-slate-200 leading-relaxed">"{t.quote}"</blockquote>
+              <blockquote className="mt-4 flex-1 text-slate-200 leading-relaxed">
+                "{t.quote}"
+              </blockquote>
               <figcaption className="mt-6 flex items-center gap-3 border-t border-white/10 pt-5">
                 <span className="grid h-11 w-11 place-items-center rounded-full bg-gradient-to-br from-brand-500 to-brand-700 font-bold text-ink-950">
                   {t.initials}
@@ -564,7 +696,10 @@ function Testimonials() {
                 </div>
                 <div className="ml-auto flex gap-0.5">
                   {Array.from({ length: 5 }).map((_, s) => (
-                    <Star key={s} className="h-3.5 w-3.5 fill-brand-400 text-brand-400" />
+                    <Star
+                      key={s}
+                      className="h-3.5 w-3.5 fill-brand-400 text-brand-400"
+                    />
                   ))}
                 </div>
               </figcaption>
@@ -580,23 +715,33 @@ function CTA() {
   const { user } = useAuth();
 
   if (user) {
-    const isWorker = user.role === 'worker';
+    const isWorker = user.role === "worker";
     const copy = isWorker
       ? {
-          heading: 'Ready to find your',
-          highlight: 'next job?',
-          subtitle: 'Browse live tasks in your expertise and apply in one tap — you get paid the moment a job completes.',
-          perks: ['No subscription fees', 'Get paid the moment a job completes', 'Choose only the tasks you want'],
-          primary: { to: '/tasks', label: 'Browse tasks' },
-          secondary: { to: '/dashboard', label: 'View my applications' },
+          heading: "Ready to find your",
+          highlight: "next job?",
+          subtitle:
+            "Browse live tasks in your expertise and apply in one tap — you get paid the moment a job completes.",
+          perks: [
+            "No subscription fees",
+            "Get paid the moment a job completes",
+            "Choose only the tasks you want",
+          ],
+          primary: { to: "/tasks", label: "Browse tasks" },
+          secondary: { to: "/dashboard", label: "View my applications" },
         }
       : {
-          heading: 'Ready to post',
-          highlight: 'another task?',
-          subtitle: 'Get matched with a nearby worker in minutes and pay securely once the job is done.',
-          perks: ['No subscription', 'Pay only when a job is done', 'Cancel a task anytime'],
-          primary: { to: '/tasks?post=1', label: 'Post a task' },
-          secondary: { to: '/dashboard', label: 'View my tasks' },
+          heading: "Ready to post",
+          highlight: "another task?",
+          subtitle:
+            "Get matched with a nearby worker in minutes and pay securely once the job is done.",
+          perks: [
+            "No subscription",
+            "Pay only when a job is done",
+            "Cancel a task anytime",
+          ],
+          primary: { to: "/tasks?post=1", label: "Post a task" },
+          secondary: { to: "/dashboard", label: "View my tasks" },
         };
 
     return (
@@ -609,13 +754,17 @@ function CTA() {
             <div className="relative grid items-center gap-10 lg:grid-cols-2">
               <div>
                 <h2 className="font-display text-3xl font-800 leading-tight tracking-tight text-white sm:text-4xl">
-                  {copy.heading} <span className="text-gradient">{copy.highlight}</span>
+                  {copy.heading}{" "}
+                  <span className="text-gradient">{copy.highlight}</span>
                 </h2>
                 <p className="mt-4 max-w-md text-slate-300">{copy.subtitle}</p>
 
                 <ul className="mt-6 space-y-2.5">
                   {copy.perks.map((p) => (
-                    <li key={p} className="flex items-center gap-2.5 text-sm text-slate-200">
+                    <li
+                      key={p}
+                      className="flex items-center gap-2.5 text-sm text-slate-200"
+                    >
                       <span className="grid h-5 w-5 place-items-center rounded-full bg-brand-500/20 text-brand-300">
                         <Check className="h-3.5 w-3.5" strokeWidth={3} />
                       </span>
@@ -627,7 +776,11 @@ function CTA() {
 
               <div className="card flex flex-col items-center gap-4 p-8 text-center sm:p-10">
                 <span className="grid h-14 w-14 place-items-center rounded-2xl bg-brand-500/15 text-brand-300">
-                  {isWorker ? <Search className="h-6 w-6" /> : <Zap className="h-6 w-6" />}
+                  {isWorker ? (
+                    <Search className="h-6 w-6" />
+                  ) : (
+                    <Zap className="h-6 w-6" />
+                  )}
                 </span>
                 <p className="text-sm text-slate-300">
                   {isWorker
@@ -652,8 +805,8 @@ function CTA() {
 }
 
 function GuestCTA() {
-  const [role, setRole] = useState('customer');
-  const [email, setEmail] = useState('');
+  const [role, setRole] = useState("customer");
+  const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
 
   return (
@@ -666,16 +819,20 @@ function GuestCTA() {
           <div className="relative grid items-center gap-10 lg:grid-cols-2">
             <div>
               <h2 className="font-display text-3xl font-800 leading-tight tracking-tight text-white sm:text-4xl">
-                Ready to post a task or <span className="text-gradient">start earning?</span>
+                Ready to post a task or{" "}
+                <span className="text-gradient">start earning?</span>
               </h2>
               <p className="mt-4 max-w-md text-slate-300">
-                Join thousands of customers and workers on HomeServiceHub. Tell us which side you're on and we'll get
-                you going in minutes.
+                Join thousands of customers and workers on HomeServiceHub. Tell
+                us which side you're on and we'll get you going in minutes.
               </p>
 
               <ul className="mt-6 space-y-2.5">
                 {perks.map((p) => (
-                  <li key={p} className="flex items-center gap-2.5 text-sm text-slate-200">
+                  <li
+                    key={p}
+                    className="flex items-center gap-2.5 text-sm text-slate-200"
+                  >
                     <span className="grid h-5 w-5 place-items-center rounded-full bg-brand-500/20 text-brand-300">
                       <Check className="h-3.5 w-3.5" strokeWidth={3} />
                     </span>
@@ -687,12 +844,14 @@ function GuestCTA() {
 
             <div className="card p-6 sm:p-8">
               <div className="inline-flex rounded-full border border-white/10 bg-ink-900 p-1">
-                {['customer', 'worker'].map((r) => (
+                {["customer", "worker"].map((r) => (
                   <button
                     key={r}
                     onClick={() => setRole(r)}
                     className={`rounded-full px-5 py-2 text-sm font-semibold capitalize transition-all ${
-                      role === r ? 'bg-brand-500 text-ink-950 shadow-glow' : 'text-slate-300 hover:text-white'
+                      role === r
+                        ? "bg-brand-500 text-ink-950 shadow-glow"
+                        : "text-slate-300 hover:text-white"
                     }`}
                   >
                     I'm a {r}
@@ -702,9 +861,15 @@ function GuestCTA() {
 
               {sent ? (
                 <div className="mt-6 rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-5 text-center">
-                  <p className="font-semibold text-white">You're on the list!</p>
+                  <p className="font-semibold text-white">
+                    You're on the list!
+                  </p>
                   <p className="mt-1 text-sm text-slate-300">
-                    We'll send {role === 'customer' ? 'your first task guide' : 'open tasks in your area'} to{' '}
+                    We'll send{" "}
+                    {role === "customer"
+                      ? "your first task guide"
+                      : "open tasks in your area"}{" "}
+                    to{" "}
                     <span className="font-medium text-brand-300">{email}</span>.
                   </p>
                 </div>
@@ -718,25 +883,31 @@ function GuestCTA() {
                 >
                   <div>
                     <label className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                      {role === 'customer' ? 'Where do you need help?' : 'What do you do?'}
+                      {role === "customer"
+                        ? "Where do you need help?"
+                        : "What do you do?"}
                     </label>
                     <select
                       className="mt-2 w-full rounded-xl border border-white/10 bg-ink-900 px-4 py-3 text-sm text-white outline-none transition-colors focus:border-brand-400"
                       defaultValue=""
                     >
-                      <option value="" disabled>Select an option…</option>
-                      {role === 'customer'
-                        ? ['Plumbing', 'Cleaning', 'Electrical'].map((o) => (
+                      <option value="" disabled>
+                        Select an option…
+                      </option>
+                      {role === "customer"
+                        ? ["Plumbing", "Cleaning", "Electrical"].map((o) => (
                             <option key={o}>{o}</option>
                           ))
-                        : ['Plumber', 'Maiden', 'Electrician'].map((o) => (
+                        : ["Plumber", "Maiden", "Electrician"].map((o) => (
                             <option key={o}>{o}</option>
                           ))}
                     </select>
                   </div>
 
                   <div>
-                    <label className="text-xs font-semibold uppercase tracking-wider text-slate-400">Email</label>
+                    <label className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                      Email
+                    </label>
                     <input
                       type="email"
                       required
@@ -748,7 +919,9 @@ function GuestCTA() {
                   </div>
 
                   <button type="submit" className="btn-primary w-full">
-                    {role === 'customer' ? 'Post my first task' : 'Find work near me'}
+                    {role === "customer"
+                      ? "Post my first task"
+                      : "Find work near me"}
                     <ArrowRight className="h-4 w-4" />
                   </button>
                 </form>
@@ -768,12 +941,12 @@ export default function Homepage() {
 
   useEffect(() => {
     // Only display verification toast if user is currently signed in AND verified param exists
-    if (user && searchParams.get('verified') === '1') {
+    if (user && searchParams.get("verified") === "1") {
       setShowVerifiedToast(true);
 
       const timer = setTimeout(() => {
         setShowVerifiedToast(false);
-        searchParams.delete('verified');
+        searchParams.delete("verified");
         setSearchParams(searchParams, { replace: true });
       }, 4000);
 
@@ -785,7 +958,7 @@ export default function Homepage() {
 
   const dismissToast = () => {
     setShowVerifiedToast(false);
-    searchParams.delete('verified');
+    searchParams.delete("verified");
     setSearchParams(searchParams, { replace: true });
   };
 
@@ -795,8 +968,12 @@ export default function Homepage() {
         <div className="fixed top-20 right-6 z-50 flex items-center gap-3 rounded-2xl border border-emerald-500/30 bg-ink-900/95 p-4 text-emerald-400 shadow-2xl backdrop-blur-md transition-all">
           <CheckCircle2 className="h-6 w-6 shrink-0 text-emerald-400" />
           <div>
-            <p className="text-sm font-bold text-white">Email Verified Successfully!</p>
-            <p className="text-xs text-slate-400">Welcome to Home Service Hub. You are now logged in.</p>
+            <p className="text-sm font-bold text-white">
+              Email Verified Successfully!
+            </p>
+            <p className="text-xs text-slate-400">
+              Welcome to Home Service Hub. You are now logged in.
+            </p>
           </div>
           <button
             onClick={dismissToast}
