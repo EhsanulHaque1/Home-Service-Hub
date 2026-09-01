@@ -82,6 +82,8 @@ Route::get('/workers/{worker}', [WorkerController::class, 'show']);
 
 // Admin Panel Routes (Protected with auth:sanctum middleware)
 Route::middleware(['auth:sanctum'])->prefix('admin')->group(function () {
+    Route::get('/feedback', [FeedbackController::class, 'adminIndex']);
+
     // Task management with advanced analytics
     Route::get('/tasks', [AdminTaskController::class, 'index']);
     Route::get('/tasks/statistics', [AdminTaskController::class, 'taskStatistics']);

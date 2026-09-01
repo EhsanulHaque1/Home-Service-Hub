@@ -76,4 +76,37 @@ class FeedbackController extends Controller
 
         return response()->json($feedbackRow);
     }
+
+    public function adminIndex(Request $request): JsonResponse
+    {
+        if (($request->user()->role ?? null) !== 'admin') {
+            return response()->json(['message' => 'Forbidden.'], 403);
+        }
+
+        $rows = DB::select(
+            "SELECT
+                f.[id],
+                f.[category],
+                f.[message],
+                f.[status],
+                f.[created_at],
+                u.[name] AS customer_name,
+                u.[email] AS customer_email,
+                CAST((
+                    SELECT COUNT(*)
+                    FROM [feedback] f2
+                    WHERE f2.[user_id] = f.[user_id]
+                ) AS INT) AS total_feedback_by_user,
+                CAST((
+                    SELECT COUNT(*)
+                    FROM [feedback] f3
+                    WHERE f3.[status] = 'open'
+                ) AS INT) AS open_feedback_total
+             FROM [feedback] f
+             INNER JOIN [users] u ON u.[id] = f.[user_id]
+             ORDER BY f.[created_at] DESC"
+        );
+
+        return response()->json($rows);
+    }
 }
