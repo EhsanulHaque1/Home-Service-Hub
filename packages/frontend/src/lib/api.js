@@ -204,6 +204,10 @@ export function fetchAdminWorkers(rank = 'none') {
   return apiGet(`/admin/users/workers?rank=${rank}`);
 }
 
+export function fetchAdminTasks() {
+  return apiGet('/admin/tasks');
+}
+
 // Export auth token management functions
 export { getAuthToken, setAuthToken };
 
