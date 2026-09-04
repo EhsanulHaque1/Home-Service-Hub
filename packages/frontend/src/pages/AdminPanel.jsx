@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   Users,
   HardHat,
@@ -18,7 +18,7 @@ import {
   MoreVertical,
   Download,
 } from "lucide-react";
-import { apiGet, fetchPaymentSummary } from "@/lib/api";
+import { apiGet, fetchPaymentSummary, fetchAdminTasks } from "@/lib/api";
 
 const tabs = [
   { id: 'all_users', label: 'Total Users', icon: Users },
@@ -33,8 +33,6 @@ const customers = [];
 
 const workers = [];
 
-const tasks = [];
-
 const feedback = [];
 
 const statusStyles = {
@@ -46,6 +44,8 @@ const statusStyles = {
   Offline: "bg-slate-500/15 text-slate-400 border-slate-500/30",
   "In Progress": "bg-sky-500/15 text-sky-300 border-sky-500/30",
   Scheduled: "bg-indigo-500/15 text-indigo-300 border-indigo-500/30",
+  Open: "bg-sky-500/15 text-sky-300 border-sky-500/30",
+  Assigned: "bg-indigo-500/15 text-indigo-300 border-indigo-500/30",
   Completed: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
   Pending: "bg-amber-500/15 text-amber-300 border-amber-500/30",
   Cancelled: "bg-rose-500/15 text-rose-300 border-rose-500/30",
@@ -58,11 +58,13 @@ const statusStyles = {
   failed: "bg-rose-500/15 text-rose-300 border-rose-500/30",
 };
 
-const priorityStyles = {
-  High: "bg-rose-500/15 text-rose-300 border-rose-500/30",
-  Medium: "bg-amber-500/15 text-amber-300 border-amber-500/30",
-  Low: "bg-slate-500/15 text-slate-400 border-slate-500/30",
-};
+function formatStatus(status) {
+  if (!status) return "Unknown";
+  return String(status)
+    .split("_")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
 
 function Badge({ children, variant }) {
   const cls =
@@ -143,6 +145,9 @@ export default function AdminPanel({ onBack }) {
   const [dbWorkers, setDbWorkers] = useState([]);
   const [userSummary, setUserSummary] = useState({ total_users: 0, total_clients: 0, total_workers: 0 });
 
+  const [dbTasks, setDbTasks] = useState([]);
+  const [tasksLoading, setTasksLoading] = useState(true);
+
   useEffect(() => {
     let active = true;
     setPaymentsLoading(true);
@@ -202,13 +207,24 @@ export default function AdminPanel({ onBack }) {
     };
   }, [userRank, clientRank, workerRank]);
 
-  const stats = useMemo(() => {
-    const completedTasks = tasks.filter((t) => t.status === 'Completed').length;
-    const activeTasks = tasks.filter((t) => t.status === 'In Progress' || t.status === 'Scheduled').length;
-    return {
-      completedTasks,
-      activeTasks,
-      avgRating: (feedback.length > 0 ? feedback.reduce((s, f) => s + f.rating, 0) / feedback.length : 0).toFixed(1),
+  useEffect(() => {
+    let active = true;
+    setTasksLoading(true);
+    fetchAdminTasks()
+      .then((res) => {
+        if (!active) return;
+        const rows = Array.isArray(res) ? res : res?.data;
+        setDbTasks(Array.isArray(rows) ? rows : []);
+      })
+      .catch((err) => {
+        console.error('Error fetching tasks:', err);
+        if (active) setDbTasks([]);
+      })
+      .finally(() => {
+        if (active) setTasksLoading(false);
+      });
+    return () => {
+      active = false;
     };
   }, []);
 
@@ -224,7 +240,7 @@ export default function AdminPanel({ onBack }) {
   const allUserRows = filter(dbAllUsers, ['id', 'name', 'email', 'phone', 'location', 'role', 'trade']);
   const clientRows = filter(dbClients, ['id', 'name', 'email', 'phone', 'location', 'role']);
   const workerRows = filter(dbWorkers, ['id', 'name', 'trade', 'phone', 'location']);
-  const taskRows = filter(tasks, ['id', 'title', 'customer', 'worker', 'status']);
+  const taskRows = filter(dbTasks, ['id', 'title', 'category', 'client_name', 'assigned_worker', 'status']);
   const feedbackRows = filter(feedback, ['id', 'customer', 'worker', 'task', 'comment']);
   const paymentRows = filter(payments, ['paymentid', 'customer_name', 'worker_name', 'task_title', 'status']);
 
@@ -571,44 +587,63 @@ export default function AdminPanel({ onBack }) {
               )}
 
               {tab === "tasks" && (
-                <table className="w-full min-w-[720px]">
+                <table className="w-full min-w-[820px]">
                   <thead className="border-b border-white/10 bg-white/5">
                     <tr>
                       <Th>Task</Th>
-                      <Th>Customer</Th>
+                      <Th>Client</Th>
                       <Th>Worker</Th>
-                      <Th>Priority</Th>
+                      <Th>Applications</Th>
                       <Th>Status</Th>
-                      <Th>Due</Th>
-                      <Th>Price</Th>
+                      <Th>Budget</Th>
+                      <Th>Created</Th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5">
-                    {taskRows.map((t) => (
-                      <tr
-                        key={t.id}
-                        className="transition-colors hover:bg-white/5"
-                      >
-                        <Td>
-                          <p className="font-medium text-white">{t.title}</p>
-                          <p className="text-xs text-slate-500">{t.id}</p>
-                        </Td>
-                        <Td className="text-slate-300">{t.customer}</Td>
-                        <Td className="text-slate-300">{t.worker}</Td>
-                        <Td>
-                          <span
-                            className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${priorityStyles[t.priority]}`}
-                          >
-                            {t.priority}
-                          </span>
-                        </Td>
-                        <Td>
-                          <Badge variant={t.status}>{t.status}</Badge>
-                        </Td>
-                        <Td className="text-slate-400">{t.due}</Td>
-                        <Td className="font-semibold text-white">{t.price}</Td>
+                    {tasksLoading ? (
+                      <tr>
+                        <td colSpan={7} className="px-4 py-10 text-center text-sm text-slate-400">
+                          Loading tasks…
+                        </td>
                       </tr>
-                    ))}
+                    ) : taskRows.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="px-4 py-10 text-center text-sm text-slate-400">
+                          No tasks yet.
+                        </td>
+                      </tr>
+                    ) : (
+                      taskRows.map((t) => (
+                        <tr
+                          key={t.id}
+                          className="transition-colors hover:bg-white/5"
+                        >
+                          <Td>
+                            <p className="font-medium text-white">{t.title}</p>
+                            <p className="text-xs text-slate-500">
+                              #{t.id} · {t.category || 'General'}
+                            </p>
+                          </Td>
+                          <Td>
+                            <p className="text-slate-300">{t.client_name || '—'}</p>
+                            <p className="text-xs text-slate-500">{t.client_email || ''}</p>
+                          </Td>
+                          <Td className="text-slate-300">{t.assigned_worker || 'Unassigned'}</Td>
+                          <Td>
+                            <span className="text-xs text-slate-300">
+                              {t.total_applications || 0} ({t.pending_applications || 0} pending)
+                            </span>
+                          </Td>
+                          <Td>
+                            <Badge variant={formatStatus(t.status)}>{formatStatus(t.status)}</Badge>
+                          </Td>
+                          <Td className="font-semibold text-white">
+                            ${Number(t.budget || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </Td>
+                          <Td className="text-slate-400">{t.created_at ? new Date(t.created_at).toLocaleDateString() : '—'}</Td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               )}

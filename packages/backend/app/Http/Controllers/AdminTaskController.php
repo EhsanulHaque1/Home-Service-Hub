@@ -26,7 +26,6 @@ class AdminTaskController extends Controller
                 u.[name] AS client_name,
                 u.[email] AS client_email,
                 w.[name] AS assigned_worker,
-                w.[rating] AS worker_rating,
                 COUNT(ta.[id]) AS total_applications,
                 ISNULL(SUM(CASE WHEN ta.[status] = 'accepted' THEN 1 ELSE 0 END), 0) AS accepted_applications,
                 ISNULL(SUM(CASE WHEN ta.[status] = 'rejected' THEN 1 ELSE 0 END), 0) AS rejected_applications,
@@ -42,7 +41,7 @@ class AdminTaskController extends Controller
                     WHERE p.[task_id] = t.[id]
                 ) AS payment_count,
                 (
-                (SELECT ISNULL(SUM(p.[amount]), 0)
+                    SELECT ISNULL(SUM(p.[amount]), 0)
                     FROM [payments] p
                     WHERE p.[task_id] = t.[id] AND p.[status] = 'completed'
                 ) AS total_paid,
@@ -54,8 +53,8 @@ class AdminTaskController extends Controller
             LEFT JOIN [task_applications] ta ON t.[id] = ta.[task_id]
             GROUP BY 
                 t.[id], t.[title], t.[description], t.[category], t.[budget], 
-                t.[location], t.[status], t.[progress], u.[name], u.[email], 
-                w.[name], w.[rating], t.[user_id], t.[assigned_worker_id], 
+                t.[location], t.[status], t.[progress], u.[name], u.[email],
+                w.[name], t.[user_id], t.[assigned_worker_id],
                 t.[created_at], t.[updated_at]
             ORDER BY t.[created_at] DESC
         ";
@@ -133,13 +132,7 @@ class AdminTaskController extends Controller
                     WHERE ta3.[task_id] = t.[id]
                     ORDER BY ta3.[created_at] DESC
                 ) AS latest_applicant,
-                DATEDIFF(DAY, t.[created_at], GETDATE()) AS days_open,
-                (
-                (SELECT ISNULL(AVG(w.[rating]), 0)
-                    FROM [task_applications] ta4
-                    INNER JOIN [users] w ON ta4.[user_id] = w.[id]
-                    WHERE ta4.[task_id] = t.[id]
-                ) AS avg_applicant_rating
+                DATEDIFF(DAY, t.[created_at], GETDATE()) AS days_open
             FROM [tasks] t
             INNER JOIN [users] u ON t.[user_id] = u.[id]
             LEFT JOIN [task_applications] ta ON t.[id] = ta.[task_id]
@@ -185,16 +178,13 @@ class AdminTaskController extends Controller
                 COUNT(DISTINCT CASE WHEN ta.[status] = 'accepted' THEN ta.[id] END) AS accepted_count,
                 COUNT(DISTINCT CASE WHEN ta.[status] = 'rejected' THEN ta.[id] END) AS rejected_count,
                 COUNT(DISTINCT CASE WHEN ta.[status] = 'pending' THEN ta.[id] END) AS pending_count,
-                AVG(w.[rating]) AS avg_applicant_rating,
-                MIN(w.[rating]) AS min_applicant_rating,
-                MAX(w.[rating]) AS max_applicant_rating,
                 (
                     SELECT COUNT(*)
                     FROM [payments] p
                     WHERE p.[task_id] = t.[id] AND p.[status] = 'completed'
                 ) AS completed_payments,
                 (
-                (SELECT ISNULL(SUM(p.[amount]), 0)
+                    SELECT ISNULL(SUM(p.[amount]), 0)
                     FROM [payments] p
                     WHERE p.[task_id] = t.[id] AND p.[status] = 'completed'
                 ) AS total_amount_paid,
@@ -203,13 +193,12 @@ class AdminTaskController extends Controller
                     FROM [task_applications] ta2
                     INNER JOIN [users] w2 ON ta2.[user_id] = w2.[id]
                     WHERE ta2.[task_id] = t.[id]
-                    ORDER BY w2.[rating] DESC
-                ) AS top_rated_applicant
+                    ORDER BY ta2.[created_at] DESC
+                ) AS latest_applicant
             FROM [tasks] t
             INNER JOIN [users] u ON t.[user_id] = u.[id]
             LEFT JOIN [task_applications] ta ON t.[id] = ta.[task_id]
-            LEFT JOIN [users] w ON ta.[user_id] = w.[id]
-            GROUP BY 
+            GROUP BY
                 t.[id], t.[title], t.[budget], t.[status], 
                 u.[name], u.[email]
             HAVING COUNT(DISTINCT ta.[id]) > 0
