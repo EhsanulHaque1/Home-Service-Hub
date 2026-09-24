@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\AdminTaskController;
+use App\Http\Controllers\AIChatController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\ComplaintController;
@@ -76,6 +77,9 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::get('/tasks', [TaskController::class, 'index']);
 Route::post('/tasks', [TaskController::class, 'store']);
 Route::get('/tasks/{task}', [TaskController::class, 'show']);
+
+// AI chatbot (RAG-backed). Public so the floating widget works pre-login.
+Route::post('/ai/chat', [App\Http\Controllers\AIChatController::class, 'chat']);
 
 Route::get('/workers', [WorkerController::class, 'index']);
 Route::get('/workers/{worker}', [WorkerController::class, 'show']);
