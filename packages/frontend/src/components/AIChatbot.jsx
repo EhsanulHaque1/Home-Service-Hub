@@ -6,8 +6,10 @@ import {
   Bot,
   RefreshCw,
 } from 'lucide-react';
+import { apiPost } from '@/lib/api';
 
 const STORAGE_KEY = 'hsh_ai_chat';
+const SESSION_KEY = 'hsh_ai_chat_session';
 
 const suggestions = [
   'How do I book a service?',
@@ -16,21 +18,21 @@ const suggestions = [
   'Can I cancel a booking?',
 ];
 
-const cannedReplies = {
-  book: "Booking is easy! Scroll to the 'Services' section, pick what you need, and tap 'Get started'. You'll choose a time slot and a worker will be assigned to you.",
-  service: "We offer plumbing, electrical work, painting, cleaning, carpentry, and HVAC. Browse them all under the 'Services' section on the homepage.",
-  pay: "Payments are handled securely after the job is done. You can pay by card, Apple Pay, or bank transfer. You'll see the total price before confirming.",
-  cancel: "You can cancel any booking up to 2 hours before the scheduled time with no charge. Go to your messages with the worker and tap 'Cancel task'.",
-  default: "I'm here to help with HomeServiceHub! You can ask me about booking services, payments, cancellations, or finding the right worker. What would you like to know?",
-};
-
-function getReply(text) {
+function getFallbackReply(text) {
   const t = text.toLowerCase();
-  if (t.includes('book') || t.includes('hire') || t.includes('schedule')) return cannedReplies.book;
-  if (t.includes('service') || t.includes('offer') || t.includes('available')) return cannedReplies.service;
-  if (t.includes('pay') || t.includes('price') || t.includes('cost') || t.includes('charge')) return cannedReplies.pay;
-  if (t.includes('cancel') || t.includes('refund')) return cannedReplies.cancel;
-  return cannedReplies.default;
+  if (t.includes('book') || t.includes('hire') || t.includes('schedule')) {
+    return "Booking is easy! Scroll to the 'Services' section, pick what you need, and tap 'Get started'. You'll choose a time slot and a worker will be assigned to you.";
+  }
+  if (t.includes('service') || t.includes('offer') || t.includes('available')) {
+    return "We offer plumbing, electrical work, painting, cleaning, carpentry, and HVAC. Browse them all under the 'Services' section on the homepage.";
+  }
+  if (t.includes('pay') || t.includes('price') || t.includes('cost') || t.includes('charge')) {
+    return "Payments are handled securely after the job is done. You can pay by card, Apple Pay, or bank transfer. You'll see the total price before confirming.";
+  }
+  if (t.includes('cancel') || t.includes('refund')) {
+    return "You can cancel any booking up to 2 hours before the scheduled time with no charge. Go to your messages with the worker and tap 'Cancel task'.";
+  }
+  return "I'm here to help with HomeServiceHub! You can ask me about booking services, payments, cancellations, or finding the right worker. What would you like to know?";
 }
 
 function formatTime(ts) {
@@ -80,7 +82,7 @@ export default function AIChatbot() {
     }
   }, [open]);
 
-  const send = (textArg) => {
+  const send = async (textArg) => {
     const text = (textArg ?? draft).trim();
     if (!text) return;
     const userMsg = { id: crypto.randomUUID(), from: 'me', text, at: Date.now() };
@@ -88,13 +90,38 @@ export default function AIChatbot() {
     setDraft('');
     setTyping(true);
 
-    const replyText = getReply(text);
-    setTimeout(() => {
-      const botMsg = { id: crypto.randomUUID(), from: 'bot', text: replyText, at: Date.now() };
-      setMessages((prev) => [...prev, botMsg]);
-      setTyping(false);
-      if (!open) setUnread(true);
-    }, 900 + Math.random() * 800);
+    try {
+      const sessionId = localStorage.getItem(SESSION_KEY) || crypto.randomUUID();
+      localStorage.setItem(SESSION_KEY, sessionId);
+
+      const res = await apiPost('/ai/chat', { message: text, session_id: sessionId });
+      const replyText = (res?.answer && res.answer.trim()) || getFallbackReply(text);
+
+      setTimeout(() => {
+        const botMsg = {
+          id: crypto.randomUUID(),
+          from: 'bot',
+          text: replyText,
+          at: Date.now(),
+          sources: Array.isArray(res?.sources) ? res.sources : undefined,
+        };
+        setMessages((prev) => [...prev, botMsg]);
+        setTyping(false);
+        if (!open) setUnread(true);
+      }, 250);
+    } catch (e) {
+      setTimeout(() => {
+        const botMsg = {
+          id: crypto.randomUUID(),
+          from: 'bot',
+          text: getFallbackReply(text),
+          at: Date.now(),
+        };
+        setMessages((prev) => [...prev, botMsg]);
+        setTyping(false);
+        if (!open) setUnread(true);
+      }, 250);
+    }
   };
 
   const reset = () => {
@@ -167,16 +194,29 @@ export default function AIChatbot() {
               return (
                 <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
                   <div className={`flex max-w-[80%] flex-col ${mine ? 'items-end' : 'items-start'}`}>
-                    <div
-                      className={`rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
-                        mine
-                          ? 'rounded-br-md bg-brand-500 text-ink-950'
-                          : 'rounded-bl-md border border-white/10 bg-ink-850 text-slate-100'
-                      }`}
-                    >
-                      {m.text}
+<div
+                    className={`rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
+                      mine
+                        ? 'rounded-br-md bg-brand-500 text-ink-950'
+                        : 'rounded-bl-md border border-white/10 bg-ink-850 text-slate-100'
+                    }`}
+                  >
+                    {m.text}
+                  </div>
+                  {!mine && Array.isArray(m.sources) && m.sources.length > 0 && (
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {m.sources.map((s, i) => (
+                        <span
+                          key={i}
+                          className="rounded bg-white/5 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-slate-500"
+                          title="Source chunk used by the assistant"
+                        >
+                          {s.source}
+                        </span>
+                      ))}
                     </div>
-                    <span className="mt-1 px-1 text-[10px] text-slate-500">{formatTime(m.at)}</span>
+                  )}
+                  <span className="mt-1 px-1 text-[10px] text-slate-500">{formatTime(m.at)}</span>
                   </div>
                 </div>
               );
