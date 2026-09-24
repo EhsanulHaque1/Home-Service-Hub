@@ -14,6 +14,7 @@ import ForgotPassword from '@/pages/ForgotPassword';
 import ResetPassword from '@/pages/ResetPassword';
 import Feedback from '@/pages/Feedback';
 import AdminPanel from '@/pages/AdminPanel';
+import AIChatbot from '@/components/AIChatbot';
 import { useAuth } from '@/context/AuthContext';
 
 function HomeLayout() {
@@ -58,6 +59,7 @@ export default function App() {
         <Route path="/feedback" element={<Feedback />} />
         <Route path="/chat" element={<Chat />} />
       </Routes>
+      <AIChatbot />
     </div>
   );
 }

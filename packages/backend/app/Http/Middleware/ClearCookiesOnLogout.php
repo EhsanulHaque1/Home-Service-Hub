@@ -11,23 +11,22 @@ use Symfony\Component\HttpFoundation\Response;
 class ClearCookiesOnLogout
 {
     /**
-     * Enforce strict cookie rule:
-     * Unless a user is BOTH authenticated AND email-verified, ALL session and CSRF cookies
-     * are forcibly expired and removed from every HTTP response so the browser holds 0 cookies.
+     * Only clear cookies on explicit logout, not on every unauthenticated API response.
+     * This middleware should only run on web routes, not API routes.
      */
     public function handle(Request $request, Closure $next): Response
     {
+        // Skip this middleware for API routes - let Sanctum handle auth
+        if ($request->is('api/*')) {
+            return $next($request);
+        }
+
         $response = $next($request);
 
-        // Check if current user is logged in AND email-verified.
-        // Guard against raw objects / non-email-verified models that do not define this method.
-        $currentUser = Auth::user();
-        $isVerifiedAndAuthenticated = Auth::check()
-            && is_object($currentUser)
-            && method_exists($currentUser, 'hasVerifiedEmail')
-            && $currentUser->hasVerifiedEmail();
+        // Check if current user is logged in
+        $isAuthenticated = Auth::check();
 
-        if (!$isVerifiedAndAuthenticated) {
+        if (!$isAuthenticated) {
             $cookiePath = config('session.path', '/');
             $configuredDomain = config('session.domain');
 
