@@ -256,10 +256,10 @@ class AuthController extends Controller
         try {
             $user = $request->user();
 
-            if (!$user || !$this->userHasVerifiedEmail($user)) {
+            if (!$user) {
                 return response()->json([
                     'user' => null,
-                    'message' => 'Not authenticated or email not verified',
+                    'message' => 'Not authenticated',
                 ], 401);
             }
 
