@@ -41,8 +41,8 @@ class DatabaseSeeder extends Seeder
             $hashedPassword = Hash::make('admin');
             
             DB::insert(
-                "INSERT INTO [users] ([name], [email], [password], [role], [email_verified_at], [created_at], [updated_at])
-                 VALUES (?, ?, ?, ?, GETDATE(), GETDATE(), GETDATE())",
+                "INSERT INTO [users] ([name], [email], [password], [role], [created_at], [updated_at])
+                 VALUES (?, ?, ?, ?, GETDATE(), GETDATE())",
                 ['Admin', $adminEmail, $hashedPassword, 'admin']
             );
             

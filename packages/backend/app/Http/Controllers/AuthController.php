@@ -31,14 +31,7 @@ class AuthController extends Controller
         return $user;
     }
 
-    private function userHasVerifiedEmail($user): bool
-    {
-        if (!is_object($user) || !method_exists($user, 'hasVerifiedEmail')) {
-            return false;
-        }
-
-        return (bool) $user->hasVerifiedEmail();
-    }
+    // Removed userHasVerifiedEmail helper
 
     private function clearCookies(JsonResponse $response, Request $request): JsonResponse
     {
@@ -94,29 +87,10 @@ class AuthController extends Controller
 
         \App\Services\UserStatsService::syncUser($id);
 
-        $verificationUrl = URL::temporarySignedRoute(
-            'verification.verify',
-            now()->addMinutes(60),
-            [
-                'id' => $id,
-                'hash' => sha1(strtolower(trim($email))),
-            ]
-        );
-
-        try {
-            Mail::to($email)->send(new WelcomeEmail(
-                'Thank you for registering with Home Service Hub! Please click the verification button below to activate your account.',
-                'Verify Your Email Address - Home Service Hub',
-                $verificationUrl
-            ));
-        } catch (\Throwable $e) {
-            Log::error('Failed to send verification email: ' . $e->getMessage());
-        }
-
         return $this->clearCookies(
             response()->json([
-                'message' => 'Registration successful! A verification link has been sent to your email. Please verify your email before logging in.',
-                'requires_verification' => true,
+                'message' => 'Registration successful! You can now log in.',
+                'requires_verification' => false,
                 'email' => $email,
             ], 201),
             $request
@@ -152,16 +126,7 @@ class AuthController extends Controller
 
         $user = $this->hydrateUser($userRow);
 
-        if (!$this->userHasVerifiedEmail($user)) {
-            return response()->json([
-                'message' => 'Your email address is not verified. Please check your inbox for the verification link.',
-                'requires_verification' => true,
-                'email' => $userRow->email,
-                'errors' => [
-                    'email' => ['Your email address is not verified.'],
-                ],
-            ], 403);
-        }
+        // Verification check removed
 
         $remember = $request->boolean('remember');
         Auth::guard('web')->login($user, $remember);
@@ -231,20 +196,15 @@ class AuthController extends Controller
             );
         }
 
-        $user = $this->hydrateUser($userRow);
-        $isVerified = $this->userHasVerifiedEmail($user);
-
         $res = response()->json([
             'exists' => true,
-            'verified' => $isVerified,
+            'verified' => true,
             'name' => $userRow->name,
             'role' => $userRow->role,
-            'message' => $isVerified
-                ? 'Account verified and active.'
-                : 'Email verification is pending.',
+            'message' => 'Account active.',
         ]);
 
-        if (!Auth::check() || !$this->userHasVerifiedEmail(Auth::user())) {
+        if (!Auth::check()) {
             return $this->clearCookies($res, $request);
         }
 

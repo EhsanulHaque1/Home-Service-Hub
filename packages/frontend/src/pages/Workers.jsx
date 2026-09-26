@@ -97,9 +97,26 @@ export default function Workers() {
                     <div className="flex items-center gap-1.5">
                       <Star className="h-4 w-4 fill-brand-400 text-brand-400" />
                       <span className="font-semibold text-white">{w.rating}</span>
-                      <span className="text-xs text-slate-500">({w.jobs_completed} jobs)</span>
+                      <span className="text-xs text-slate-500">({w.completed_jobs_calc ?? w.jobs_completed} jobs)</span>
                     </div>
                     <span className="text-sm font-semibold text-brand-300">${w.hourly_rate}/hr</span>
+                  </div>
+
+                  <div className="mt-3 flex flex-col gap-1 border-t border-white/5 pt-3 text-xs text-slate-400">
+                    <div className="flex justify-between">
+                      <span>Total Earned:</span>
+                      <span className="text-slate-300">${Number(w.total_earned || 0).toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Avg Task Budget:</span>
+                      <span className="text-slate-300">${Number(w.average_task_budget || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Complaints:</span>
+                      <span className={w.complaints_count > 0 ? 'text-red-400 font-medium' : 'text-slate-300'}>
+                        {w.complaints_count || 0}
+                      </span>
+                    </div>
                   </div>
 
                   <button className="mt-5 w-full rounded-full border border-white/10 bg-white/5 py-2.5 text-sm font-semibold text-white transition-colors group-hover:border-brand-400/50 group-hover:bg-brand-500 group-hover:text-ink-950">
