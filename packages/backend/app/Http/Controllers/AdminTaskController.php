@@ -8,13 +8,21 @@ use Illuminate\Http\Request;
 class AdminTaskController extends Controller
 {
     /**
-     * Display all tasks with detailed information for admin panel
-     * Uses: JOIN, AGGREGATE FUNCTION, SUB QUERY
+     * Create the admin task list view if it does not exist yet
+     * Uses: VIEW with JOIN, AGGREGATE FUNCTION, SUB QUERY
+     * (ORDER BY is not allowed inside a view, so callers sort when selecting.)
      */
-    public function index(Request $request)
+    private function ensureAdminTaskListView()
     {
-        $query = "
-            SELECT 
+        $exists = DB::selectOne("SELECT OBJECT_ID('vw_admin_task_list', 'V') AS [id]")->id;
+
+        if ($exists) {
+            return;
+        }
+
+        DB::statement("
+            CREATE VIEW [vw_admin_task_list] AS
+            SELECT
                 t.[id],
                 t.[title],
                 t.[description],
@@ -31,13 +39,13 @@ class AdminTaskController extends Controller
                 ISNULL(SUM(CASE WHEN ta.[status] = 'rejected' THEN 1 ELSE 0 END), 0) AS rejected_applications,
                 ISNULL(SUM(CASE WHEN ta.[status] = 'pending' THEN 1 ELSE 0 END), 0) AS pending_applications,
                 (
-                    SELECT COUNT(*) 
-                    FROM [messages] m 
+                    SELECT COUNT(*)
+                    FROM [messages] m
                     WHERE (m.[from_user_id] = t.[user_id] OR m.[to_user_id] = t.[user_id])
                 ) AS total_messages,
                 (
-                    SELECT COUNT(*) 
-                    FROM [payments] p 
+                    SELECT COUNT(*)
+                    FROM [payments] p
                     WHERE p.[task_id] = t.[id]
                 ) AS payment_count,
                 (
@@ -51,12 +59,26 @@ class AdminTaskController extends Controller
             LEFT JOIN [users] u ON t.[user_id] = u.[id]
             LEFT JOIN [users] w ON t.[assigned_worker_id] = w.[id]
             LEFT JOIN [task_applications] ta ON t.[id] = ta.[task_id]
-            GROUP BY 
-                t.[id], t.[title], t.[description], t.[category], t.[budget], 
+            GROUP BY
+                t.[id], t.[title], t.[description], t.[category], t.[budget],
                 t.[location], t.[status], t.[progress], u.[name], u.[email],
                 w.[name], t.[user_id], t.[assigned_worker_id],
                 t.[created_at], t.[updated_at]
-            ORDER BY t.[created_at] DESC
+        ");
+    }
+
+    /**
+     * Display all tasks with detailed information for admin panel
+     * Uses: VIEW [vw_admin_task_list] (JOIN, AGGREGATE FUNCTION, SUB QUERY)
+     */
+    public function index(Request $request)
+    {
+        $this->ensureAdminTaskListView();
+
+        $query = "
+            SELECT *
+            FROM [vw_admin_task_list]
+            ORDER BY [created_at] DESC
         ";
 
         $tasks = DB::select($query);
