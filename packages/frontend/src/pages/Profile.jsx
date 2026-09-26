@@ -44,25 +44,7 @@ export default function Profile() {
   const [deleteSuccessMsg, setDeleteSuccessMsg] = useState('');
   const [deleteErrorMsg, setDeleteErrorMsg] = useState('');
 
-  // Live polling while account deletion email is pending confirmation
-  useEffect(() => {
-    if (!deleteModalOpen || !deleteSuccessMsg) return;
-
-    const interval = setInterval(async () => {
-      try {
-        const u = await refreshUser();
-        if (!u) {
-          await logout();
-          navigate('/sign-in?account_deleted=1');
-        }
-      } catch (e) {
-        await logout();
-        navigate('/sign-in?account_deleted=1');
-      }
-    }, 2000);
-
-    return () => clearInterval(interval);
-  }, [deleteModalOpen, deleteSuccessMsg, refreshUser, logout, navigate]);
+  // Instant deletion means no polling needed
 
   useEffect(() => {
     if (user) {
@@ -139,9 +121,13 @@ export default function Profile() {
     setDeleteErrorMsg('');
     try {
       const res = await requestAccountDeletion();
-      setDeleteSuccessMsg(res?.message || 'Verification link sent! Check your inbox to confirm deletion.');
+      setDeleteSuccessMsg(res?.message || 'Your account has been deleted.');
+      setTimeout(() => {
+        logout();
+        navigate('/sign-in?account_deleted=1');
+      }, 1000);
     } catch (err) {
-      setDeleteErrorMsg(err.message || 'Failed to request account deletion.');
+      setDeleteErrorMsg(err.message || 'Failed to delete account.');
     } finally {
       setDeleteStatus('idle');
     }
@@ -373,8 +359,7 @@ export default function Profile() {
             </div>
 
             <p className="text-xs text-slate-300 leading-relaxed mb-4">
-              To verify account ownership, an email verification link will be sent to{' '}
-              <strong className="text-white">{user.email}</strong>. Clicking the link in your email will permanently delete your account.
+              Are you absolutely sure you want to delete your account? This action cannot be undone. All your data will be permanently wiped.
             </p>
 
             {deleteSuccessMsg && (
@@ -382,21 +367,9 @@ export default function Profile() {
                 <div className="flex items-start gap-2">
                   <CheckCircle className="h-4 w-4 shrink-0 text-emerald-400 mt-0.5" />
                   <div className="leading-relaxed">
-                    <strong className="block text-emerald-200 mb-0.5">Verification Link Sent!</strong>
+                    <strong className="block text-emerald-200 mb-0.5">Account Deleted</strong>
                     <span>{deleteSuccessMsg}</span>
                   </div>
-                </div>
-                <div className="mt-2 pt-2 border-t border-emerald-500/20 flex items-center justify-between text-[11px]">
-                  <span className="text-emerald-400/80">Didn't get the email?</span>
-                  <button
-                    type="button"
-                    onClick={handleRequestDeletion}
-                    disabled={deleteStatus === 'loading'}
-                    className="flex items-center gap-1 font-semibold text-emerald-300 hover:text-white underline"
-                  >
-                    {deleteStatus === 'loading' ? <Loader2 className="h-3 w-3 spin" /> : <RefreshCw className="h-3 w-3" />}
-                    Resend Link
-                  </button>
                 </div>
               </div>
             )}
@@ -426,9 +399,9 @@ export default function Profile() {
                   {deleteStatus === 'loading' ? (
                     <Loader2 className="h-3.5 w-3.5 spin" />
                   ) : (
-                    <Send className="h-3.5 w-3.5" />
+                    <Trash2 className="h-3.5 w-3.5" />
                   )}
-                  Send Verification Email
+                  Yes, permanently delete my account
                 </button>
               )}
             </div>

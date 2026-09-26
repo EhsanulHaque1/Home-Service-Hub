@@ -30,8 +30,8 @@ class AdminUserSeeder extends Seeder
         $hashed = Hash::make(self::ADMIN_PASSWORD);
 
         DB::insert(
-            "INSERT INTO [users] ([name], [email], [password], [role], [phone], [location], [expertise], [email_verified_at], [created_at], [updated_at])
-             VALUES (?, ?, ?, 'admin', NULL, NULL, NULL, GETDATE(), GETDATE(), GETDATE())",
+            "INSERT INTO [users] ([name], [email], [password], [role], [phone], [location], [expertise], [created_at], [updated_at])
+             VALUES (?, ?, ?, 'admin', NULL, NULL, NULL, GETDATE(), GETDATE())",
             [self::ADMIN_NAME, self::ADMIN_EMAIL, $hashed]
         );
 
