@@ -208,6 +208,26 @@ export function fetchAdminTasks() {
   return apiGet('/admin/tasks');
 }
 
+export function fetchAdminComplaints(rank = 'none') {
+  return apiGet(`/admin/complaints?rank=${rank}`);
+}
+
+export function fetchAdminFeedbacks(rank = 'none') {
+  return apiGet(`/admin/feedback?rank=${rank}`);
+}
+
+export function searchAdminFeedbackById(feedbackId) {
+  return apiGet(`/admin/feedback/search?feedback_id=${feedbackId}`);
+}
+
+export function searchAdminComplaintById(complaintId) {
+  return apiGet(`/admin/complaints/search?complaint_id=${complaintId}`);
+}
+
+export function searchAdminPaymentById(paymentId) {
+  return apiGet(`/admin/payments/search?payment_id=${paymentId}`);
+}
+
 // Export auth token management functions
 export { getAuthToken, setAuthToken };
 

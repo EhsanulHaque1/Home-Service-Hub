@@ -87,6 +87,7 @@ Route::get('/workers/{worker}', [WorkerController::class, 'show']);
 // Admin Panel Routes (Protected with auth:sanctum middleware)
 Route::middleware(['auth:sanctum'])->prefix('admin')->group(function () {
     Route::get('/feedback', [FeedbackController::class, 'adminIndex']);
+    Route::get('/feedback/search', [FeedbackController::class, 'adminSearchById']);
 
     // Task management with advanced analytics
     Route::get('/tasks', [AdminTaskController::class, 'index']);
@@ -94,4 +95,10 @@ Route::middleware(['auth:sanctum'])->prefix('admin')->group(function () {
     Route::get('/tasks/priority', [AdminTaskController::class, 'highPriorityTasks']);
     Route::get('/tasks/applications', [AdminTaskController::class, 'tasksWithApplicationAnalytics']);
     Route::get('/tasks/comparison', [AdminTaskController::class, 'tasksVsCategoryAverage']);
+
+    Route::get('/complaints', [ComplaintController::class, 'adminIndex']);
+    Route::get('/complaints/search', [ComplaintController::class, 'adminSearchById']);
+
+    Route::get('/payments', [PaymentController::class, 'index']);
+    Route::get('/payments/search', [PaymentController::class, 'adminSearchById']);
 });

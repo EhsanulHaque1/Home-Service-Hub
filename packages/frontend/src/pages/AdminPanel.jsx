@@ -18,7 +18,7 @@ import {
   MoreVertical,
   Download,
 } from "lucide-react";
-import { apiGet, fetchPaymentSummary, fetchAdminTasks } from "@/lib/api";
+import { apiGet, fetchPaymentSummary, fetchAdminTasks, fetchAdminComplaints, fetchAdminFeedbacks, searchAdminFeedbackById, searchAdminComplaintById, searchAdminPaymentById } from "@/lib/api";
 
 const tabs = [
   { id: 'all_users', label: 'Total Users', icon: Users },
@@ -136,6 +136,9 @@ export default function AdminPanel({ onBack }) {
   const [paymentsLoading, setPaymentsLoading] = useState(true);
   const [summary, setSummary] = useState({ totalRevenue: 0, pendingPayments: 0 });
   const [rank, setRank] = useState('none');
+  const [paymentSearch, setPaymentSearch] = useState('');
+  const [paymentSearchResults, setPaymentSearchResults] = useState(null);
+  const [paymentSearching, setPaymentSearching] = useState(false);
   const [userRank, setUserRank] = useState('none');
   const [clientRank, setClientRank] = useState('none');
   const [workerRank, setWorkerRank] = useState('none');
@@ -228,6 +231,22 @@ export default function AdminPanel({ onBack }) {
     };
   }, []);
 
+  const handlePaymentSearch = async (e) => {
+    e.preventDefault();
+    const id = paymentSearch.trim();
+    if (!id || !/^\d+$/.test(id)) return;
+    setPaymentSearching(true);
+    try {
+      const rows = await searchAdminPaymentById(id);
+      setPaymentSearchResults(Array.isArray(rows) && rows.length ? rows : []);
+    } catch (err) {
+      console.error('Error searching payment:', err);
+      setPaymentSearchResults([]);
+    } finally {
+      setPaymentSearching(false);
+    }
+  };
+
   const filter = (rows, fields) =>
     rows.filter((r) =>
       fields.some((f) =>
@@ -242,7 +261,9 @@ export default function AdminPanel({ onBack }) {
   const workerRows = filter(dbWorkers, ['id', 'name', 'trade', 'phone', 'location']);
   const taskRows = filter(dbTasks, ['id', 'title', 'category', 'client_name', 'assigned_worker', 'status']);
   const feedbackRows = filter(feedback, ['id', 'customer', 'worker', 'task', 'comment']);
-  const paymentRows = filter(payments, ['paymentid', 'customer_name', 'worker_name', 'task_title', 'status']);
+  const paymentRows = paymentSearchResults !== null
+    ? paymentSearchResults
+    : filter(payments, ['paymentid', 'customer_name', 'worker_name', 'task_title', 'status']);
 
   return (
     <div className="flex min-h-screen bg-ink-950 text-slate-200">
@@ -707,6 +728,44 @@ export default function AdminPanel({ onBack }) {
                       </label>
                     ))}
                   </div>
+
+                  <form onSubmit={handlePaymentSearch} className="mb-4 flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Search by ID:</span>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        value={paymentSearch}
+                        onChange={(e) => setPaymentSearch(e.target.value)}
+                        placeholder="Payment ID"
+                        className="w-32 rounded-xl border border-white/10 bg-ink-900 px-3 py-2 text-sm text-white placeholder:text-slate-500 outline-none transition-colors focus:border-brand-400"
+                        min="1"
+                      />
+                      <button
+                        type="submit"
+                        disabled={!paymentSearch.trim() || paymentSearching}
+                        className="inline-flex items-center gap-2 rounded-xl border border-brand-400/30 bg-brand-500/10 px-3 py-2 text-xs font-medium text-brand-300 transition-colors hover:bg-brand-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <Search className="h-3.5 w-3.5" />
+                        Search
+                      </button>
+                      {paymentSearchResults !== null && paymentSearchResults.length === 0 && paymentSearch && (
+                        <span className="text-xs text-amber-400">No payment found with ID {paymentSearch}</span>
+                      )}
+                      {paymentSearchResults !== null && paymentSearchResults.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPaymentSearch('');
+                            setPaymentSearchResults(null);
+                          }}
+                          className="inline-flex items-center gap-1 rounded-xl border border-white/10 bg-white/5 px-2 py-1.5 text-xs text-slate-400 hover:text-white"
+                        >
+                          <X className="h-3 w-3" />
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                  </form>
 
                   <table className="w-full min-w-[760px]">
                     <thead className="border-b border-white/10 bg-white/5">
