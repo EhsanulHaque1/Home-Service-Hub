@@ -196,54 +196,27 @@ class TaskController extends Controller
     {
         $userId = $request->user()->id;
 
-        $rows = DB::select("SELECT * FROM [tasks] WHERE [id] = $task");
-        $taskRow = $rows[0] ?? null;
+        $result = DB::select("EXEC sp_advance_task_progress @taskId = $task, @workerId = $userId");
+        $row = $result[0] ?? null;
 
-        if (!$taskRow) {
+        if (!$row) {
             return response()->json(['message' => 'Task not found.'], 404);
         }
 
-        if ($taskRow->assigned_worker_id != $userId) {
-            return response()->json(['message' => 'Only the assigned worker can update progress.'], 403);
+        // Result codes: -1 = unauthorized/not found, 0 = already finished, 1 = success
+        if ((int) $row->result === -1) {
+            return response()->json(['message' => 'Task not found or unauthorized.'], 403);
+        }
+        if ((int) $row->result === 0) {
+            return response()->json(['message' => $row->message ?? 'Task already finished.'], 422);
         }
 
-        $progressOrder = [
-            '',
-            'Arriving at the task place',
-            'Starting the work',
-            'Completing the work',
-            'The task is finished',
-        ];
-
-        $current = $taskRow->progress ?? '';
-        $idx = array_search($current, $progressOrder, true);
-        if ($idx === false) {
-            $idx = 0;
-        }
-
-        if ($idx >= 4) {
-            return response()->json(['message' => 'Task already finished.'], 422);
-        }
-
-        $next = $progressOrder[$idx + 1];
-        $status = $idx + 1 >= 4 ? 'completed' : $taskRow->status;
-
-        DB::update(
-            "UPDATE [tasks] SET [progress] = '$next', [status] = '$status', [updated_at] = GETDATE() WHERE [id] = $task"
-        );
-
-        // When the worker reaches "Completing the work", open a pending payment.
-        if ($next === 'Completing the work') {
-            $this->ensurePayment($taskRow);
-        }
-
-        if ($status === 'completed' || $next === 'The task is finished') {
+        // Sync stats when task is completed
+        if ($row->progress === 'The task is finished' || $row->status === 'completed') {
             \App\Services\UserStatsService::syncTask((int) $task);
         }
 
-        $rows = DB::select("SELECT * FROM [tasks] WHERE [id] = $task");
-
-        return response()->json($rows[0] ?? null);
+        return response()->json($row);
     }
 
     /**
