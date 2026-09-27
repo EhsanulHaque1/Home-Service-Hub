@@ -70,15 +70,17 @@ class AuthController extends Controller
             [$name, $email, $hashed, $role, $phone, $location, $expertiseJson]
         );
 
-        $id = DB::getPdo()->lastInsertId();
+        // Fetch the correct ID because database triggers mess up lastInsertId() in SQL Server
+        $userRecords = DB::select("SELECT [id] FROM [users] WHERE [email] = ?", [$email]);
+        $id = $userRecords[0]->id;
 
         if ($role === 'worker') {
             $firstTrade = !empty($expertise) && is_array($expertise) ? $expertise[0] : ($expertise ?? 'General');
             try {
-                DB::insert(
-                    "INSERT INTO [workers] ([user_id], [name], [email], [phone], [trade], [location], [bio], [rating], [jobs_completed], [tasks_received], [total_money_gained], [hourly_rate], [created_at], [updated_at])
-                     VALUES (?, ?, ?, ?, ?, ?, '', 5.0, 0, 0, 0, 25.00, GETDATE(), GETDATE())",
-                    [$id, $name, $email, $phone, $firstTrade, $location]
+                // The database trigger automatically inserts the worker, so we just update the trade
+                DB::update(
+                    "UPDATE [workers] SET [trade] = ? WHERE [user_id] = ?",
+                    [$firstTrade, $id]
                 );
             } catch (\Throwable $e) {
                 Log::warning('Could not sync to workers table: ' . $e->getMessage());
