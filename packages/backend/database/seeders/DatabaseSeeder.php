@@ -21,6 +21,7 @@ class DatabaseSeeder extends Seeder
         DB::table('complaints')->delete();
         DB::table('tasks')->delete();
         DB::table('workers')->delete();
+        DB::table('clients')->delete();
         DB::table('users')->delete();
         
         // Re-enable all foreign key constraints

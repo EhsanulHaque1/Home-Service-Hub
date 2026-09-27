@@ -69,9 +69,6 @@ class UserManagementController extends Controller
         return response()->json($rows);
     }
 
-    /**
-     * Get Clients with subquery for total money spent, ranked by spending
-     */
     public function clients(Request $request): JsonResponse
     {
         if (($request->user()->role ?? null) !== 'admin') {
@@ -79,38 +76,31 @@ class UserManagementController extends Controller
         }
 
         $rank = $request->query('rank');
-        $allowed = ['none', '1st', '2nd', '3rd'];
-        if (!in_array($rank, $allowed, true)) {
-            $rank = 'none';
-        }
-
-        $top = '';
-        $where = "WHERE (u.[role] = 'client' OR u.[role] = 'customer' OR u.[role] IS NULL OR u.[role] = '')";
-
+        
+        $offsetClause = '';
         if ($rank === '1st') {
-            $top = 'TOP 1';
+            $offsetClause = "OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY";
         } elseif ($rank === '2nd') {
-            $top = 'TOP 1';
-            $where .= " AND (SELECT ISNULL(SUM(p.[amount]), 0) FROM [payments] p WHERE p.[customer_id] = u.[id] AND (p.[status] = 'Complete' OR p.[status] = 'successfull' OR p.[status] = 'Paid')) < (SELECT TOP 1 (SELECT ISNULL(SUM(p2.[amount]), 0) FROM [payments] p2 WHERE p2.[customer_id] = u2.[id] AND (p2.[status] = 'Complete' OR p2.[status] = 'successfull' OR p2.[status] = 'Paid')) FROM [users] u2 WHERE (u2.[role] = 'client' OR u2.[role] = 'customer' OR u2.[role] IS NULL OR u2.[role] = '') ORDER BY (SELECT ISNULL(SUM(p2.[amount]), 0) FROM [payments] p2 WHERE p2.[customer_id] = u2.[id] AND (p2.[status] = 'Complete' OR p2.[status] = 'successfull' OR p2.[status] = 'Paid')) DESC)";
+            $offsetClause = "OFFSET 1 ROWS FETCH NEXT 1 ROWS ONLY";
         } elseif ($rank === '3rd') {
-            $top = 'TOP 1';
-            $where .= " AND (SELECT ISNULL(SUM(p.[amount]), 0) FROM [payments] p WHERE p.[customer_id] = u.[id] AND (p.[status] = 'Complete' OR p.[status] = 'successfull' OR p.[status] = 'Paid')) < (SELECT TOP 1 (SELECT ISNULL(SUM(p2.[amount]), 0) FROM [payments] p2 WHERE p2.[customer_id] = u2.[id] AND (p2.[status] = 'Complete' OR p2.[status] = 'successfull' OR p2.[status] = 'Paid')) FROM [users] u2 WHERE (u2.[role] = 'client' OR u2.[role] = 'customer' OR u2.[role] IS NULL OR u2.[role] = '') AND (SELECT ISNULL(SUM(p2.[amount]), 0) FROM [payments] p2 WHERE p2.[customer_id] = u2.[id] AND (p2.[status] = 'Complete' OR p2.[status] = 'successfull' OR p2.[status] = 'Paid')) < (SELECT TOP 1 (SELECT ISNULL(SUM(p3.[amount]), 0) FROM [payments] p3 WHERE p3.[customer_id] = u3.[id] AND (p3.[status] = 'Complete' OR p3.[status] = 'successfull' OR p3.[status] = 'Paid')) FROM [users] u3 WHERE (u3.[role] = 'client' OR u3.[role] = 'customer' OR u3.[role] IS NULL OR u3.[role] = '') ORDER BY (SELECT ISNULL(SUM(p3.[amount]), 0) FROM [payments] p3 WHERE p3.[customer_id] = u3.[id] AND (p3.[status] = 'Complete' OR p3.[status] = 'successfull' OR p3.[status] = 'Paid')) DESC) ORDER BY (SELECT ISNULL(SUM(p2.[amount]), 0) FROM [payments] p2 WHERE p2.[customer_id] = u2.[id] AND (p2.[status] = 'Complete' OR p2.[status] = 'successfull' OR p2.[status] = 'Paid')) DESC)";
+            $offsetClause = "OFFSET 2 ROWS FETCH NEXT 1 ROWS ONLY";
         }
 
         $rows = DB::select(
-            "SELECT $top 
-                u.[id], 
-                u.[name], 
-                u.[email], 
-                u.[phone], 
-                u.[location], 
-                ISNULL(u.[role], 'client') AS [role], 
-                u.[created_at],
-                (SELECT ISNULL(SUM(p.[amount]), 0) FROM [payments] p WHERE p.[customer_id] = u.[id] AND (p.[status] = 'Complete' OR p.[status] = 'successfull' OR p.[status] = 'Paid')) AS [total_spent],
-                (SELECT COUNT(t.[id]) FROM [tasks] t WHERE t.[user_id] = u.[id]) AS [total_tasks_given]
-             FROM [users] u
-             $where
-             ORDER BY (SELECT ISNULL(SUM(p.[amount]), 0) FROM [payments] p WHERE p.[customer_id] = u.[id] AND (p.[status] = 'Complete' OR p.[status] = 'successfull' OR p.[status] = 'Paid')) DESC, u.[id] DESC"
+            "SELECT 
+                c.[user_id] AS [id], 
+                c.[name], 
+                c.[email], 
+                c.[phone], 
+                c.[location], 
+                'client' AS [role], 
+                c.[created_at],
+                c.[total_money_spent] AS [total_spent],
+                c.[total_tasks_given] AS [total_tasks_given]
+             FROM [clients] c
+             WHERE c.[user_id] IS NOT NULL
+             ORDER BY c.[total_money_spent] DESC, c.[id] DESC
+             $offsetClause"
         );
 
         return response()->json($rows);
@@ -124,9 +114,6 @@ class UserManagementController extends Controller
         return $this->clients($request);
     }
 
-    /**
-     * Get Workers with subquery for total money received/gained, ranked by earnings
-     */
     public function workers(Request $request): JsonResponse
     {
         if (($request->user()->role ?? null) !== 'admin') {
@@ -134,49 +121,42 @@ class UserManagementController extends Controller
         }
 
         $rank = $request->query('rank');
-        $allowed = ['none', '1st', '2nd', '3rd'];
-        if (!in_array($rank, $allowed, true)) {
-            $rank = 'none';
-        }
-
-        $top = '';
-        $where = "WHERE u.[role] = 'worker'";
-
+        
+        $offsetClause = '';
         if ($rank === '1st') {
-            $top = 'TOP 1';
+            $offsetClause = "OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY";
         } elseif ($rank === '2nd') {
-            $top = 'TOP 1';
-            $where .= " AND (SELECT ISNULL(SUM(p.[amount]), 0) FROM [payments] p WHERE p.[worker_id] = u.[id] AND (p.[status] = 'Complete' OR p.[status] = 'successfull' OR p.[status] = 'Paid')) < (SELECT TOP 1 (SELECT ISNULL(SUM(p2.[amount]), 0) FROM [payments] p2 WHERE p2.[worker_id] = u2.[id] AND (p2.[status] = 'Complete' OR p2.[status] = 'successfull' OR p2.[status] = 'Paid')) FROM [users] u2 WHERE u2.[role] = 'worker' ORDER BY (SELECT ISNULL(SUM(p2.[amount]), 0) FROM [payments] p2 WHERE p2.[worker_id] = u2.[id] AND (p2.[status] = 'Complete' OR p2.[status] = 'successfull' OR p2.[status] = 'Paid')) DESC)";
+            $offsetClause = "OFFSET 1 ROWS FETCH NEXT 1 ROWS ONLY";
         } elseif ($rank === '3rd') {
-            $top = 'TOP 1';
-            $where .= " AND (SELECT ISNULL(SUM(p.[amount]), 0) FROM [payments] p WHERE p.[worker_id] = u.[id] AND (p.[status] = 'Complete' OR p.[status] = 'successfull' OR p.[status] = 'Paid')) < (SELECT TOP 1 (SELECT ISNULL(SUM(p2.[amount]), 0) FROM [payments] p2 WHERE p2.[worker_id] = u2.[id] AND (p2.[status] = 'Complete' OR p2.[status] = 'successfull' OR p2.[status] = 'Paid')) FROM [users] u2 WHERE u2.[role] = 'worker' AND (SELECT ISNULL(SUM(p2.[amount]), 0) FROM [payments] p2 WHERE p2.[worker_id] = u2.[id] AND (p2.[status] = 'Complete' OR p2.[status] = 'successfull' OR p2.[status] = 'Paid')) < (SELECT TOP 1 (SELECT ISNULL(SUM(p3.[amount]), 0) FROM [payments] p3 WHERE p3.[worker_id] = u3.[id] AND (p3.[status] = 'Complete' OR p3.[status] = 'successfull' OR p3.[status] = 'Paid')) FROM [users] u3 WHERE u3.[role] = 'worker' ORDER BY (SELECT ISNULL(SUM(p3.[amount]), 0) FROM [payments] p3 WHERE p3.[worker_id] = u3.[id] AND (p3.[status] = 'Complete' OR p3.[status] = 'successfull' OR p3.[status] = 'Paid')) DESC) ORDER BY (SELECT ISNULL(SUM(p2.[amount]), 0) FROM [payments] p2 WHERE p2.[worker_id] = u2.[id] AND (p2.[status] = 'Complete' OR p2.[status] = 'successfull' OR p2.[status] = 'Paid')) DESC)";
+            $offsetClause = "OFFSET 2 ROWS FETCH NEXT 1 ROWS ONLY";
         }
 
         $rows = DB::select(
-            "SELECT $top 
-                u.[id], 
-                u.[name], 
-                u.[email], 
-                u.[phone], 
-                u.[location], 
-                u.[expertise], 
-                u.[role], 
-                u.[created_at],
-                (SELECT ISNULL(SUM(p.[amount]), 0) FROM [payments] p WHERE p.[worker_id] = u.[id] AND (p.[status] = 'Complete' OR p.[status] = 'successfull' OR p.[status] = 'Paid')) AS [total_earned],
-                (SELECT COUNT(t.[id]) FROM [tasks] t WHERE t.[assigned_worker_id] = u.[id]) AS [total_tasks_done]
-             FROM [users] u
-             $where
-             ORDER BY (SELECT ISNULL(SUM(p.[amount]), 0) FROM [payments] p WHERE p.[worker_id] = u.[id] AND (p.[status] = 'Complete' OR p.[status] = 'successfull' OR p.[status] = 'Paid')) DESC, u.[id] DESC"
+            "SELECT 
+                w.[user_id] AS [id], 
+                w.[name], 
+                w.[email], 
+                w.[phone], 
+                w.[location], 
+                w.[trade], 
+                'worker' AS [role], 
+                w.[created_at],
+                w.[total_money_gained] AS [total_earned],
+                w.[jobs_completed] AS [total_tasks_done]
+             FROM [workers] w
+             WHERE w.[user_id] IS NOT NULL
+             ORDER BY w.[total_money_gained] DESC, w.[id] DESC
+             $offsetClause"
         );
 
         foreach ($rows as $row) {
-            $decoded = !empty($row->expertise) ? json_decode($row->expertise, true) : null;
+            $decoded = !empty($row->trade) ? json_decode($row->trade, true) : null;
             if (is_array($decoded) && !empty($decoded)) {
                 $row->trade = implode(', ', $decoded);
             } elseif (is_string($decoded)) {
                 $row->trade = $decoded;
             } else {
-                $row->trade = $row->expertise ?? 'Worker';
+                $row->trade = $row->trade ?? 'Worker';
             }
         }
 
@@ -197,11 +177,11 @@ class UserManagementController extends Controller
         $totalUsers = !empty($totalUsersRow) ? (int) $totalUsersRow[0]->total : 0;
 
         // Aggregate 2: Total Workers
-        $totalWorkersRow = DB::select("SELECT COUNT([id]) AS total FROM [users] WHERE [role] = 'worker'");
+        $totalWorkersRow = DB::select("SELECT COUNT([id]) AS total FROM [workers] WHERE [user_id] IS NOT NULL");
         $totalWorkers = !empty($totalWorkersRow) ? (int) $totalWorkersRow[0]->total : 0;
 
         // Aggregate 3: Total Clients (Customers)
-        $totalClientsRow = DB::select("SELECT COUNT([id]) AS total FROM [users] WHERE ([role] = 'client' OR [role] = 'customer' OR [role] IS NULL OR [role] = '')");
+        $totalClientsRow = DB::select("SELECT COUNT([id]) AS total FROM [clients] WHERE [user_id] IS NOT NULL");
         $totalClients = !empty($totalClientsRow) ? (int) $totalClientsRow[0]->total : 0;
 
         // Aggregate 4: JOIN tasks & users - How many users (clients) have given tasks
