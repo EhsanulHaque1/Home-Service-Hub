@@ -48,6 +48,98 @@ class PaymentController extends Controller
         return response()->json($rows);
     }
 
+    /**
+     * Ensure the search by ID procedure exists (idempotent).
+     */
+    private function ensureSearchPaymentByIdProcedure()
+    {
+        $exists = DB::selectOne("SELECT OBJECT_ID('dbo.sp_search_payment_by_id', 'P') AS [id]")->id;
+
+        if ($exists) {
+            return true;
+        }
+
+        try {
+            DB::statement("DROP PROCEDURE IF EXISTS sp_search_payment_by_id");
+
+            DB::statement("
+                CREATE PROCEDURE sp_search_payment_by_id
+                    @payment_id INT
+                AS
+                BEGIN
+                    SET NOCOUNT ON;
+
+                    SELECT
+                        p.paymentid,
+                        p.customer_id,
+                        p.worker_id,
+                        p.task_id,
+                        p.amount,
+                        p.status,
+                        p.paymentdate,
+                        p.created_at,
+                        p.updated_at,
+                        u.name AS customer_name,
+                        w.name AS worker_name,
+                        t.title AS task_title
+                    FROM payments p
+                    LEFT JOIN users u ON u.id = p.customer_id
+                    LEFT JOIN users w ON w.id = p.worker_id
+                    LEFT JOIN tasks t ON t.id = p.task_id
+                    WHERE p.paymentid = @payment_id
+                    ORDER BY p.paymentdate DESC;
+                END;
+            ");
+
+            return (bool) DB::selectOne("SELECT OBJECT_ID('dbo.sp_search_payment_by_id', 'P') AS [id]")->id;
+        } catch (\Throwable $e) {
+            report($e);
+            return false;
+        }
+    }
+
+    /**
+     * Admin: Search payment by ID using stored procedure.
+     * Returns single record or empty array if not found.
+     */
+    public function adminSearchById(Request $request): JsonResponse
+    {
+        if (($request->user()->role ?? null) !== 'admin') {
+            return response()->json(['message' => 'Forbidden.'], 403);
+        }
+
+        $paymentId = $request->query('payment_id');
+
+        if (empty($paymentId) || !is_numeric($paymentId)) {
+            return response()->json(['message' => 'Invalid payment_id.'], 400);
+        }
+
+        $rows = null;
+        if ($this->ensureSearchPaymentByIdProcedure()) {
+            $rows = DB::select(
+                "EXEC sp_search_payment_by_id @payment_id = ?",
+                [(int) $paymentId]
+            );
+        }
+
+        // Fallback: direct query if procedure unavailable
+        if (!$rows) {
+            $rows = DB::select(
+                "SELECT
+                    p.paymentid, p.customer_id, p.worker_id, p.task_id, p.amount, p.status, p.paymentdate, p.created_at, p.updated_at,
+                    u.name AS customer_name, w.name AS worker_name, t.title AS task_title
+                 FROM payments p
+                 LEFT JOIN users u ON u.id = p.customer_id
+                 LEFT JOIN users w ON w.id = p.worker_id
+                 LEFT JOIN tasks t ON t.id = p.task_id
+                 WHERE p.paymentid = ?",
+                [(int) $paymentId]
+            );
+        }
+
+        return response()->json($rows);
+    }
+
     public function summary(Request $request): JsonResponse
     {
         if (($request->user()->role ?? null) !== 'admin') {
