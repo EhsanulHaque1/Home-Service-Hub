@@ -26,26 +26,23 @@ class PaymentController extends Controller
         $where = '';
 
         if ($rank === '1st') {
-            // SELECT TOP 1 * FROM payments ORDER BY amount DESC
+            // SELECT TOP 1 * FROM admin_payments_view ORDER BY amount DESC
             $top = 'TOP 1';
         } elseif ($rank === '2nd') {
-            // SELECT TOP 1 * FROM payments WHERE amount < (SELECT TOP 1 amount FROM payments ORDER BY amount DESC) ORDER BY amount DESC
+            // SELECT TOP 1 * FROM admin_payments_view WHERE amount < (SELECT TOP 1 amount FROM admin_payments_view ORDER BY amount DESC) ORDER BY amount DESC
             $top = 'TOP 1';
-            $where = "WHERE p.[amount] < (SELECT TOP 1 [amount] FROM [payments] ORDER BY [amount] DESC)";
+            $where = "WHERE [amount] < (SELECT TOP 1 [amount] FROM admin_payments_view ORDER BY [amount] DESC)";
         } elseif ($rank === '3rd') {
-            // SELECT TOP 1 * FROM payments WHERE amount < (SELECT TOP 1 amount FROM payments WHERE amount < (SELECT TOP 1 amount FROM payments ORDER BY amount DESC) ORDER BY amount DESC) ORDER BY amount DESC
+            // SELECT TOP 1 * FROM admin_payments_view WHERE amount < (SELECT TOP 1 amount FROM admin_payments_view WHERE amount < (SELECT TOP 1 amount FROM admin_payments_view ORDER BY amount DESC) ORDER BY amount DESC) ORDER BY amount DESC
             $top = 'TOP 1';
-            $where = "WHERE p.[amount] < (SELECT TOP 1 [amount] FROM [payments] WHERE [amount] < (SELECT TOP 1 [amount] FROM [payments] ORDER BY [amount] DESC) ORDER BY [amount] DESC)";
+            $where = "WHERE [amount] < (SELECT TOP 1 [amount] FROM admin_payments_view WHERE [amount] < (SELECT TOP 1 [amount] FROM admin_payments_view ORDER BY [amount] DESC) ORDER BY [amount] DESC)";
         }
 
         $rows = DB::select(
-            "SELECT $top p.*, u.[name] AS customer_name, w.[name] AS worker_name, t.[title] AS task_title
-             FROM [payments] p
-             LEFT JOIN [users] u ON u.[id] = p.[customer_id]
-             LEFT JOIN [users] w ON w.[id] = p.[worker_id]
-             LEFT JOIN [tasks] t ON t.[id] = p.[task_id]
+            "SELECT $top *
+             FROM admin_payments_view
              $where
-             ORDER BY p.[amount] DESC"
+             ORDER BY [amount] DESC"
         );
 
         return response()->json($rows);
@@ -156,22 +153,90 @@ class PaymentController extends Controller
         }
 
         if ($paymentId) {
-            DB::update(
-                "UPDATE [payments] SET [status] = '$status', [paymentdate] = GETDATE(), [updated_at] = GETDATE() WHERE [paymentid] = $paymentId"
-            );
+            $sql = "
+                BEGIN TRANSACTION;
+
+                -- 1. Update payment status
+                UPDATE [payments] 
+                SET [status] = '$status', [paymentdate] = GETDATE(), [updated_at] = GETDATE() 
+                WHERE [paymentid] = $paymentId;
+            ";
 
             if ($status === 'successfull') {
-                $rows = DB::select("SELECT [task_id], [customer_id], [worker_id] FROM [payments] WHERE [paymentid] = $paymentId");
-                $taskId = $rows[0]->task_id ?? null;
-                if ($taskId) {
-                    DB::update(
-                        "UPDATE [tasks] SET [progress] = 'The task is finished', [status] = 'completed', [updated_at] = GETDATE() WHERE [id] = $taskId"
-                    );
-                    \App\Services\UserStatsService::syncTask((int) $taskId);
-                } else if (!empty($rows)) {
-                    \App\Services\UserStatsService::syncUser(array_filter([$rows[0]->customer_id, $rows[0]->worker_id]));
-                }
+                $sql .= "
+                    -- 2. Get payment details and update related tables
+                    DECLARE @taskId INT, @customerId INT, @workerId INT;
+                    
+                    SELECT @taskId = [task_id], @customerId = [customer_id], @workerId = [worker_id]
+                    FROM [payments] WHERE [paymentid] = $paymentId;
+
+                    -- 3. Update task status
+                    IF @taskId IS NOT NULL
+                    BEGIN
+                        UPDATE [tasks] 
+                        SET [progress] = 'The task is finished', [status] = 'completed', [updated_at] = GETDATE() 
+                        WHERE [id] = @taskId;
+                    END
+
+                    -- 4. Update users table: total_spent for customer
+                    IF @customerId IS NOT NULL
+                    BEGIN
+                        UPDATE [users] 
+                        SET [total_spent] = ISNULL((
+                            SELECT SUM(p.[amount]) 
+                            FROM [payments] p 
+                            WHERE p.[customer_id] = [users].[id] 
+                              AND p.[status] IN ('Complete', 'complete', 'completed', 'successfull', 'successful', 'Paid', 'paid', 'success')
+                        ), 0) 
+                        WHERE [id] = @customerId;
+                    END
+
+                    -- 5. Update users table: total_earned for worker
+                    IF @workerId IS NOT NULL
+                    BEGIN
+                        UPDATE [users] 
+                        SET [total_earned] = ISNULL((
+                            SELECT SUM(p.[amount]) 
+                            FROM [payments] p 
+                            WHERE p.[worker_id] = [users].[id] 
+                              AND p.[status] IN ('Complete', 'complete', 'completed', 'successfull', 'successful', 'Paid', 'paid', 'success')
+                        ), 0) 
+                        WHERE [id] = @workerId;
+                    END
+
+                    -- 6. Update clients table: total_money_spent
+                    IF @customerId IS NOT NULL
+                    BEGIN
+                        UPDATE [clients] 
+                        SET [total_money_spent] = ISNULL((
+                            SELECT SUM(p.[amount]) 
+                            FROM [payments] p 
+                            WHERE p.[customer_id] = [clients].[user_id] 
+                              AND p.[status] IN ('Complete', 'complete', 'completed', 'successfull', 'successful', 'Paid', 'paid', 'success')
+                        ), 0) 
+                        WHERE [user_id] = @customerId;
+                    END
+
+                    -- 7. Update workers table: total_money_gained
+                    IF @workerId IS NOT NULL
+                    BEGIN
+                        UPDATE [workers] 
+                        SET [total_money_gained] = ISNULL((
+                            SELECT SUM(p.[amount]) 
+                            FROM [payments] p 
+                            WHERE p.[worker_id] = [workers].[user_id] 
+                              AND p.[status] IN ('Complete', 'complete', 'completed', 'successfull', 'successful', 'Paid', 'paid', 'success')
+                        ), 0) 
+                        WHERE [user_id] = @workerId;
+                    END
+                ";
             }
+
+            $sql .= "
+                COMMIT TRANSACTION;
+            ";
+
+            DB::unprepared($sql);
         }
 
         $front = rtrim(Config::get('sslcommerz.frontend_url', 'http://localhost:5173'), '/');

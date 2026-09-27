@@ -6,38 +6,47 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use stdClass;
 
 class ChatController extends Controller
 {
+    /**
+     * Result codes returned by the chat stored procedures.
+     */
+    private const RESULT_NOT_FOUND = -1;
+
+    private const RESULT_FORBIDDEN = -2;
+
+    private const RESULT_OK = 1;
+
+    /**
+     * Conversation list, read from the vw_chat_conversations view.
+     */
     public function conversations(Request $request): JsonResponse
     {
-        $userId = Auth::id();
+        $userId = (int) Auth::id();
 
         $rows = DB::select(
-            "SELECT m.[id], m.[from_user_id], m.[to_user_id], m.[conversation], m.[created_at],
-                    u.[name] AS other_name, u.[role] AS other_role, u.[phone] AS other_phone, latest.other_user_id
-             FROM [messages] m
-             INNER JOIN (
-                 SELECT CASE WHEN [from_user_id] = $userId THEN [to_user_id] ELSE [from_user_id] END AS other_user_id,
-                        MAX([id]) AS max_id
-                 FROM [messages]
-                 WHERE [from_user_id] = $userId OR [to_user_id] = $userId
-                 GROUP BY CASE WHEN [from_user_id] = $userId THEN [to_user_id] ELSE [from_user_id] END
-             ) latest ON latest.max_id = m.[id]
-             LEFT JOIN [users] u ON u.[id] = latest.other_user_id
-             ORDER BY m.[created_at] DESC"
+            'SELECT other_user.[id], other_user.[name], other_user.[role], other_user.[phone],
+                    v.[last_message], v.[last_message_at]
+             FROM [dbo].[vw_chat_conversations] v
+             INNER JOIN [dbo].[users] other_user
+                ON other_user.[id] = CASE WHEN v.[user_a] = ? THEN v.[user_b] ELSE v.[user_a] END
+             WHERE v.[user_a] = ? OR v.[user_b] = ?
+             ORDER BY v.[last_message_at] DESC',
+            [$userId, $userId, $userId]
         );
 
         $conversations = array_map(function ($row) {
             return [
-                'user' => $row->other_user_id ? [
-                    'id' => $row->other_user_id,
-                    'name' => $row->other_name,
-                    'role' => $row->other_role,
-                    'phone' => $row->other_phone,
-                ] : null,
-                'last_message' => $row->conversation,
-                'last_message_at' => $row->created_at,
+                'user' => [
+                    'id' => $row->id,
+                    'name' => $row->name,
+                    'role' => $row->role,
+                    'phone' => $row->phone,
+                ],
+                'last_message' => $row->last_message,
+                'last_message_at' => $row->last_message_at,
             ];
         }, $rows);
 
@@ -46,12 +55,16 @@ class ChatController extends Controller
         ]);
     }
 
+    /**
+     * People the current user can start a conversation with.
+     */
     public function users(Request $request): JsonResponse
     {
-        $userId = Auth::id();
+        $userId = (int) Auth::id();
 
         $rows = DB::select(
-            "SELECT [id], [name], [role], [phone] FROM [users] WHERE [id] != $userId ORDER BY [name]"
+            'SELECT [id], [name], [role], [phone] FROM [dbo].[users] WHERE [id] != ? ORDER BY [name]',
+            [$userId]
         );
 
         $users = array_map(function ($row) {
@@ -68,18 +81,27 @@ class ChatController extends Controller
         ]);
     }
 
+    /**
+     * A single thread, read from the vw_chat_messages view.
+     */
     public function messages(Request $request, $user): JsonResponse
     {
-        $userId = Auth::id();
+        $userId = (int) Auth::id();
+        $otherUserId = (int) $user;
 
         $rows = DB::select(
-            "SELECT [id], [from_user_id], [to_user_id], [conversation], [created_at]
-             FROM [messages]
-             WHERE ([from_user_id] = $userId AND [to_user_id] = $user) OR ([from_user_id] = $user AND [to_user_id] = $userId)
-             ORDER BY [created_at] ASC"
+            'SELECT [id], [from_user_id], [to_user_id], [conversation], [created_at]
+             FROM [dbo].[vw_chat_messages]
+             WHERE ([from_user_id] = ? AND [to_user_id] = ?)
+                OR ([from_user_id] = ? AND [to_user_id] = ?)
+             ORDER BY [created_at] ASC',
+            [$userId, $otherUserId, $otherUserId, $userId]
         );
 
-        $userRows = DB::select("SELECT [id], [name], [role], [phone] FROM [users] WHERE [id] = $user");
+        $userRows = DB::select(
+            'SELECT [id], [name], [role], [phone] FROM [dbo].[users] WHERE [id] = ?',
+            [$otherUserId]
+        );
         $other = $userRows[0] ?? null;
 
         return response()->json([
@@ -93,73 +115,118 @@ class ChatController extends Controller
         ]);
     }
 
+    /**
+     * Send a message through sp_create_chat_message.
+     */
     public function store(Request $request): JsonResponse
     {
-        $userId = Auth::id();
-
-        $toUserId = (int) $request->input('to_user_id');
-        $conversation = $request->input('conversation');
-
-        DB::insert(
-            "INSERT INTO [messages] ([from_user_id], [to_user_id], [conversation], [created_at], [updated_at])
-             VALUES ($userId, $toUserId, '$conversation', GETDATE(), GETDATE())"
+        $rows = DB::select(
+            'EXEC [dbo].[sp_create_chat_message] @fromUserId = ?, @toUserId = ?, @conversation = ?',
+            [
+                (int) Auth::id(),
+                (int) $request->input('to_user_id'),
+                $this->messageBody($request),
+            ]
         );
 
-        $id = DB::getPdo()->lastInsertId();
-        $rows = DB::select("SELECT * FROM [messages] WHERE [id] = $id");
+        $row = $rows[0] ?? null;
+
+        if (! $row || (int) $row->result !== self::RESULT_OK) {
+            return response()->json(['message' => $row->message ?? 'Message could not be sent.'], 422);
+        }
 
         return response()->json([
-            'message' => 'Message sent successfully.',
-            'data' => $rows[0] ?? null,
+            'message' => $row->message,
+            'data' => $this->messagePayload($row),
         ], 201);
     }
 
+    /**
+     * Edit a message through sp_update_chat_message.
+     */
     public function update(Request $request, $message): JsonResponse
     {
-        $userId = Auth::id();
+        $rows = DB::select(
+            'EXEC [dbo].[sp_update_chat_message] @messageId = ?, @userId = ?, @conversation = ?',
+            [
+                (int) $message,
+                (int) Auth::id(),
+                $this->messageBody($request),
+            ]
+        );
 
-        $rows = DB::select("SELECT * FROM [messages] WHERE [id] = $message");
-        $msgRow = $rows[0] ?? null;
+        $row = $rows[0] ?? null;
 
-        if (!$msgRow) {
+        if (! $row) {
             return response()->json(['message' => 'Message not found.'], 404);
         }
 
-        if ($msgRow->from_user_id != $userId) {
-            return response()->json(['message' => 'You can only edit your own messages.'], 403);
+        $status = match ((int) $row->result) {
+            self::RESULT_NOT_FOUND => 404,
+            self::RESULT_FORBIDDEN => 403,
+            self::RESULT_OK => 200,
+            default => 422,
+        };
+
+        if ($status !== 200) {
+            return response()->json(['message' => $row->message], $status);
         }
 
-        $conversation = $request->input('conversation');
-
-        DB::update(
-            "UPDATE [messages] SET [conversation] = '$conversation', [updated_at] = GETDATE() WHERE [id] = $message"
-        );
-
-        $rows = DB::select("SELECT * FROM [messages] WHERE [id] = $message");
-
         return response()->json([
-            'message' => 'Message updated.',
-            'data' => $rows[0] ?? null,
+            'message' => $row->message,
+            'data' => $this->messagePayload($row),
         ]);
     }
 
+    /**
+     * Delete a message through sp_delete_chat_message.
+     */
     public function destroy(Request $request, $message): JsonResponse
     {
-        $userId = Auth::id();
+        $rows = DB::select(
+            'EXEC [dbo].[sp_delete_chat_message] @messageId = ?, @userId = ?',
+            [(int) $message, (int) Auth::id()]
+        );
 
-        $rows = DB::select("SELECT * FROM [messages] WHERE [id] = $message");
-        $msgRow = $rows[0] ?? null;
+        $row = $rows[0] ?? null;
 
-        if (!$msgRow) {
+        if (! $row) {
             return response()->json(['message' => 'Message not found.'], 404);
         }
 
-        if ($msgRow->from_user_id != $userId) {
-            return response()->json(['message' => 'You can only delete your own messages.'], 403);
+        $status = match ((int) $row->result) {
+            self::RESULT_NOT_FOUND => 404,
+            self::RESULT_FORBIDDEN => 403,
+            self::RESULT_OK => 200,
+            default => 422,
+        };
+
+        return response()->json(['message' => $row->message], $status);
+    }
+
+    /**
+     * Read the message body as a plain string so the procedure always receives
+     * something it can bind, whatever the client sent.
+     */
+    private function messageBody(Request $request): string
+    {
+        $body = $request->input('conversation');
+
+        if (is_string($body)) {
+            return $body;
         }
 
-        DB::delete("DELETE FROM [messages] WHERE [id] = $message");
+        return is_scalar($body) ? (string) $body : '';
+    }
 
-        return response()->json(['message' => 'Message deleted.']);
+    /**
+     * Strip the procedure status columns from a message row.
+     */
+    private function messagePayload(stdClass $row): object
+    {
+        $data = clone $row;
+        unset($data->result, $data->message);
+
+        return $data;
     }
 }
