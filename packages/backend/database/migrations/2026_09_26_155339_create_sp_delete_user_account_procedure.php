@@ -41,6 +41,10 @@ return new class extends Migration
                 -- 7. Delete sessions
                 DELETE FROM sessions WHERE user_id = @user_id;
 
+                -- 7.5. Delete clients and workers
+                DELETE FROM clients WHERE user_id = @user_id;
+                DELETE FROM workers WHERE user_id = @user_id;
+
                 -- 8. Delete the user
                 DELETE FROM users WHERE id = @user_id;
 

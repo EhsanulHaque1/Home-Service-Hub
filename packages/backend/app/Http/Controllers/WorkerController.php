@@ -10,7 +10,7 @@ class WorkerController extends Controller
     public function index(Request $request)
     {
         $page = max(1, (int) $request->input('page', 1));
-        $perPage = 12;
+        $perPage = 1;
         $offset = ($page - 1) * $perPage;
 
         $conditions = '1=1';
@@ -28,7 +28,7 @@ class WorkerController extends Controller
              FROM [workers] w
              LEFT JOIN worker_quality_stats_view v ON w.user_id = v.worker_id
              WHERE $conditions 
-             ORDER BY w.[rating] DESC 
+             ORDER BY w.[rating] DESC, ISNULL(v.[total_earned], 0) DESC, w.[jobs_completed] DESC
              OFFSET $offset ROWS FETCH NEXT $perPage ROWS ONLY"
         );
 
