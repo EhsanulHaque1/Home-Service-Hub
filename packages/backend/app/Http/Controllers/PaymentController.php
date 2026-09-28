@@ -10,6 +10,31 @@ use Illuminate\Support\Facades\DB;
 
 class PaymentController extends Controller
 {
+    /**
+     * Ensure the payments summary view exists (idempotent).
+     * Uses SUM() and COUNT() aggregates so the admin dashboard
+     * can show total revenue and pending payments from one view.
+     */
+    private function ensurePaymentSummaryView()
+    {
+        $exists = DB::selectOne("SELECT OBJECT_ID('admin_payments_summary_view', 'V') AS [id]")->id;
+
+        if ($exists) {
+            return;
+        }
+
+        DB::statement("
+            CREATE VIEW admin_payments_summary_view AS
+            SELECT
+                (SELECT ISNULL(SUM([amount]), 0) FROM [payments] WHERE [status] = 'successfull') AS total_revenue,
+                (SELECT ISNULL(SUM([amount]), 0) FROM [payments] WHERE [status] IN ('Complete', 'complete', 'completed', 'successfull', 'successful', 'Paid', 'paid', 'success')) AS total_revenue_all_paid,
+                (SELECT COUNT(*) FROM [payments] WHERE [status] = 'pending') AS pending_payments,
+                (SELECT COUNT(*) FROM [payments] WHERE [status] = 'successfull') AS successfull_payments,
+                (SELECT COUNT(*) FROM [payments] WHERE [status] = 'failed') AS failed_payments,
+                (SELECT COUNT(*) FROM [payments]) AS total_payments
+        ");
+    }
+
     public function index(Request $request): JsonResponse
     {
         if (($request->user()->role ?? null) !== 'admin') {
@@ -146,28 +171,25 @@ class PaymentController extends Controller
             return response()->json(['message' => 'Forbidden.'], 403);
         }
 
-        // SELECT status, COUNT(status) FROM payments WHERE status = 'pending'
-        $pendingRows = DB::select(
-            "SELECT [status], COUNT([status]) AS count
-             FROM [payments]
-             WHERE [status] = 'pending'
-             GROUP BY [status]"
-        );
-        $pending = !empty($pendingRows) ? (int) $pendingRows[0]->count : 0;
+        $this->ensurePaymentSummaryView();
 
-        // SELECT amount, SUM(amount) FROM payments WHERE status = 'successfull'
-        $revenueRows = DB::select(
-            "SELECT SUM([amount]) AS total
-             FROM [payments]
-             WHERE [status] = 'successfull'"
-        );
-        $revenue = (!empty($revenueRows) && $revenueRows[0]->total !== null)
-            ? (float) $revenueRows[0]->total
+        $rows = DB::select("SELECT * FROM admin_payments_summary_view");
+        $row = $rows[0] ?? null;
+
+        $revenue = (!empty($rows) && $row->total_revenue !== null)
+            ? (float) $row->total_revenue
+            : 0;
+        $pending = (!empty($rows) && $row->pending_payments !== null)
+            ? (int) $row->pending_payments
             : 0;
 
         return response()->json([
             'pending_payments' => $pending,
             'total_revenue' => $revenue,
+            'total_revenue_all_paid' => (float) ($row->total_revenue_all_paid ?? 0),
+            'successfull_payments' => (int) ($row->successfull_payments ?? 0),
+            'failed_payments' => (int) ($row->failed_payments ?? 0),
+            'total_payments' => (int) ($row->total_payments ?? 0),
         ]);
     }
 
