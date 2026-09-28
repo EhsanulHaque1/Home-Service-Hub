@@ -14,11 +14,11 @@ We offer plumbing, electrical work, painting, cleaning, carpentry, and HVAC. Bro
 
 ## How do payments work?
 
-Payments are handled securely after the job is done. You can pay by card, Apple Pay, or bank transfer. You will see the total price before confirming, and the amount is held safely and released to the worker only once you approve the completed work.
+Payments are handled securely after the job is done. You can pay by card, Apple Pay, or bank transfer. You will see the total price before confirming, and the amount is held safely and released to the worker only once you approve the completed work.It is processed using sslCommerz
 
 ## How do I cancel a booking?
 
-You can cancel any booking up to 2 hours before the scheduled time with no charge. Go to your messages with the worker and tap Cancel task. If you need to cancel inside the 2-hour window, contact the worker directly through the app to arrange.
+You can cancel any booking when no worker selected the tasks yet. Otherwise, you can't except the help of admin.
 
 ## How do I message a worker?
 
@@ -30,7 +30,7 @@ Workers build their profile with their trade, service area, hourly rate, and ava
 
 ## What verification do workers pass?
 
-Every worker passes ID and background verification before joining. Each worker also has ratings on every job, so you can see their track record before hiring.
+Every worker passes their phone number, address and other relevant details for the verification. This information are stored for any problems if happens in the future.
 
 ## Is there a subscription?
 
@@ -39,3 +39,7 @@ No subscription. Customers pay only when a job is done, and workers are paid the
 ## How do I report a problem?
 
 If something goes wrong with a task, worker, or payment, you can submit a complaint from your dashboard. Our support team reviews it and gets back to you.
+
+## How does feedback work?
+
+Users can give their feedback to the admin about the improvement of their activities.
