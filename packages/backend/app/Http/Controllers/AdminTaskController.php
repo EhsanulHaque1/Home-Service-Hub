@@ -14,11 +14,14 @@ class AdminTaskController extends Controller
      */
     private function ensureAdminTaskListView()
     {
-        $exists = DB::selectOne("SELECT OBJECT_ID('vw_admin_task_list', 'V') AS [id]")->id;
+        // Recreate an older copy of the view that still counted 'rejected' (the app uses 'declined')
+        $definition = DB::selectOne("SELECT OBJECT_DEFINITION(OBJECT_ID('vw_admin_task_list', 'V')) AS [def]")->def;
 
-        if ($exists) {
+        if ($definition && str_contains($definition, 'declined_applications')) {
             return;
         }
+
+        DB::statement("DROP VIEW IF EXISTS [vw_admin_task_list]");
 
         DB::statement("
             CREATE VIEW [vw_admin_task_list] AS
@@ -36,7 +39,7 @@ class AdminTaskController extends Controller
                 w.[name] AS assigned_worker,
                 COUNT(ta.[id]) AS total_applications,
                 ISNULL(SUM(CASE WHEN ta.[status] = 'accepted' THEN 1 ELSE 0 END), 0) AS accepted_applications,
-                ISNULL(SUM(CASE WHEN ta.[status] = 'rejected' THEN 1 ELSE 0 END), 0) AS rejected_applications,
+                ISNULL(SUM(CASE WHEN ta.[status] = 'declined' THEN 1 ELSE 0 END), 0) AS declined_applications,
                 ISNULL(SUM(CASE WHEN ta.[status] = 'pending' THEN 1 ELSE 0 END), 0) AS pending_applications,
                 (
                     SELECT COUNT(*)

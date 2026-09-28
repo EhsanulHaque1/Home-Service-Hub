@@ -259,7 +259,7 @@ export default function AdminPanel({ onBack }) {
   const allUserRows = filter(dbAllUsers, ['id', 'name', 'email', 'phone', 'location', 'role', 'trade']);
   const clientRows = filter(dbClients, ['id', 'name', 'email', 'phone', 'location', 'role']);
   const workerRows = filter(dbWorkers, ['id', 'name', 'trade', 'phone', 'location']);
-  const taskRows = filter(dbTasks, ['id', 'title', 'category', 'client_name', 'assigned_worker', 'status']);
+  const taskRows = filter(dbTasks, ['id', 'title', 'description', 'category', 'location', 'client_name', 'client_email', 'assigned_worker', 'status', 'progress']);
   const feedbackRows = filter(feedback, ['id', 'customer', 'worker', 'task', 'comment']);
   const paymentRows = paymentSearchResults !== null
     ? paymentSearchResults
@@ -608,28 +608,30 @@ export default function AdminPanel({ onBack }) {
               )}
 
               {tab === "tasks" && (
-                <table className="w-full min-w-[820px]">
+                <table className="w-full min-w-[1280px]">
                   <thead className="border-b border-white/10 bg-white/5">
                     <tr>
                       <Th>Task</Th>
                       <Th>Client</Th>
                       <Th>Worker</Th>
-                      <Th>Applications</Th>
                       <Th>Status</Th>
+                      <Th>Applications</Th>
                       <Th>Budget</Th>
-                      <Th>Created</Th>
+                      <Th>Payments</Th>
+                      <Th>Client Msgs</Th>
+                      <Th>Dates</Th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5">
                     {tasksLoading ? (
                       <tr>
-                        <td colSpan={7} className="px-4 py-10 text-center text-sm text-slate-400">
+                        <td colSpan={9} className="px-4 py-10 text-center text-sm text-slate-400">
                           Loading tasks…
                         </td>
                       </tr>
                     ) : taskRows.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="px-4 py-10 text-center text-sm text-slate-400">
+                        <td colSpan={9} className="px-4 py-10 text-center text-sm text-slate-400">
                           No tasks yet.
                         </td>
                       </tr>
@@ -637,13 +639,21 @@ export default function AdminPanel({ onBack }) {
                       taskRows.map((t) => (
                         <tr
                           key={t.id}
-                          className="transition-colors hover:bg-white/5"
+                          className="align-top transition-colors hover:bg-white/5"
                         >
                           <Td>
                             <p className="font-medium text-white">{t.title}</p>
                             <p className="text-xs text-slate-500">
                               #{t.id} · {t.category || 'General'}
                             </p>
+                            {t.description && (
+                              <p className="mt-1 max-w-xs truncate text-xs text-slate-400" title={t.description}>
+                                {t.description}
+                              </p>
+                            )}
+                            {t.location && (
+                              <p className="mt-0.5 text-xs text-slate-500">📍 {t.location}</p>
+                            )}
                           </Td>
                           <Td>
                             <p className="text-slate-300">{t.client_name || '—'}</p>
@@ -651,17 +661,41 @@ export default function AdminPanel({ onBack }) {
                           </Td>
                           <Td className="text-slate-300">{t.assigned_worker || 'Unassigned'}</Td>
                           <Td>
-                            <span className="text-xs text-slate-300">
-                              {t.total_applications || 0} ({t.pending_applications || 0} pending)
-                            </span>
+                            <Badge variant={formatStatus(t.status)}>{formatStatus(t.status)}</Badge>
+                            <p className="mt-1 max-w-[160px] text-xs text-slate-500">
+                              {t.progress || 'Not started'}
+                            </p>
                           </Td>
                           <Td>
-                            <Badge variant={formatStatus(t.status)}>{formatStatus(t.status)}</Badge>
+                            <p className="text-xs text-slate-300">{t.total_applications || 0} total</p>
+                            <p className="text-xs text-slate-500">
+                              <span className="text-emerald-400">{t.accepted_applications || 0} accepted</span>
+                              {' · '}
+                              <span className="text-rose-400">{t.declined_applications || 0} declined</span>
+                              {' · '}
+                              <span className="text-amber-300">{t.pending_applications || 0} pending</span>
+                            </p>
                           </Td>
                           <Td className="font-semibold text-white">
                             ${Number(t.budget || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </Td>
-                          <Td className="text-slate-400">{t.created_at ? new Date(t.created_at).toLocaleDateString() : '—'}</Td>
+                          <Td>
+                            <p className="font-semibold text-emerald-400">
+                              ${Number(t.total_paid || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </p>
+                            <p className="text-xs text-slate-500">
+                              {t.payment_count || 0} payment{Number(t.payment_count) === 1 ? '' : 's'}
+                            </p>
+                          </Td>
+                          <Td className="text-slate-300">{t.total_messages || 0}</Td>
+                          <Td>
+                            <p className="text-xs text-slate-400">
+                              Created {t.created_at ? new Date(t.created_at).toLocaleDateString() : '—'}
+                            </p>
+                            <p className="text-xs text-slate-500">
+                              Updated {t.updated_at ? new Date(t.updated_at).toLocaleDateString() : '—'}
+                            </p>
+                          </Td>
                         </tr>
                       ))
                     )}
