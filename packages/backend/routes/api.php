@@ -72,6 +72,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/admin/users/clients', [UserManagementController::class, 'clients']);
     Route::get('/admin/users/customers', [UserManagementController::class, 'customers']);
     Route::get('/admin/users/workers', [UserManagementController::class, 'workers']);
+    Route::get('/admin/users/records', [UserManagementController::class, 'userRecords']);
+});
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/user/record', [UserManagementController::class, 'userRecord']);
 });
 
 Route::get('/tasks', [TaskController::class, 'index']);
