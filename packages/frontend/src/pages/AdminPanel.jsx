@@ -17,6 +17,7 @@ import {
   ChevronDown,
   MoreVertical,
   Download,
+  AlertCircle,
 } from "lucide-react";
 import { apiGet, fetchPaymentSummary, fetchAdminTasks, fetchAdminComplaints, fetchAdminFeedbacks, searchAdminFeedbackById, searchAdminComplaintById, searchAdminPaymentById } from "@/lib/api";
 
@@ -26,14 +27,13 @@ const tabs = [
   { id: 'workers', label: 'Workers', icon: HardHat },
   { id: 'tasks', label: 'Tasks', icon: ClipboardList },
   { id: 'feedback', label: 'Feedback', icon: Star },
+  { id: 'complaints', label: 'Complaints', icon: AlertCircle },
   { id: 'payments', label: 'Payments', icon: CreditCard },
 ];
 
 const customers = [];
 
 const workers = [];
-
-const feedback = [];
 
 const statusStyles = {
   Active: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
@@ -150,6 +150,18 @@ export default function AdminPanel({ onBack }) {
 
   const [dbTasks, setDbTasks] = useState([]);
   const [tasksLoading, setTasksLoading] = useState(true);
+  const [dbComplaints, setDbComplaints] = useState([]);
+  const [complaintsLoading, setComplaintsLoading] = useState(true);
+  const [complaintRank, setComplaintRank] = useState('none');
+  const [complaintSearch, setComplaintSearch] = useState('');
+  const [complaintSearchResults, setComplaintSearchResults] = useState(null);
+  const [complaintSearching, setComplaintSearching] = useState(false);
+  const [dbFeedbacks, setDbFeedbacks] = useState([]);
+  const [feedbackLoading, setFeedbackLoading] = useState(true);
+  const [feedbackRank, setFeedbackRank] = useState('none');
+  const [feedbackSearch, setFeedbackSearch] = useState('');
+  const [feedbackSearchResults, setFeedbackSearchResults] = useState(null);
+  const [feedbackSearching, setFeedbackSearching] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -231,6 +243,46 @@ export default function AdminPanel({ onBack }) {
     };
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    setComplaintsLoading(true);
+    fetchAdminComplaints(complaintRank)
+      .then((data) => {
+        if (!active) return;
+        setDbComplaints(Array.isArray(data) ? data : []);
+      })
+      .catch((err) => {
+        console.error('Error fetching complaints:', err);
+        if (active) setDbComplaints([]);
+      })
+      .finally(() => {
+        if (active) setComplaintsLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [complaintRank]);
+
+  useEffect(() => {
+    let active = true;
+    setFeedbackLoading(true);
+    fetchAdminFeedbacks(feedbackRank)
+      .then((data) => {
+        if (!active) return;
+        setDbFeedbacks(Array.isArray(data) ? data : []);
+      })
+      .catch((err) => {
+        console.error('Error fetching feedbacks:', err);
+        if (active) setDbFeedbacks([]);
+      })
+      .finally(() => {
+        if (active) setFeedbackLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [feedbackRank]);
+
   const handlePaymentSearch = async (e) => {
     e.preventDefault();
     const id = paymentSearch.trim();
@@ -247,6 +299,38 @@ export default function AdminPanel({ onBack }) {
     }
   };
 
+  const handleComplaintSearch = async (e) => {
+    e.preventDefault();
+    const id = complaintSearch.trim();
+    if (!id || !/^\d+$/.test(id)) return;
+    setComplaintSearching(true);
+    try {
+      const rows = await searchAdminComplaintById(id);
+      setComplaintSearchResults(Array.isArray(rows) && rows.length ? rows : []);
+    } catch (err) {
+      console.error('Error searching complaint:', err);
+      setComplaintSearchResults([]);
+    } finally {
+      setComplaintSearching(false);
+    }
+  };
+
+  const handleFeedbackSearch = async (e) => {
+    e.preventDefault();
+    const id = feedbackSearch.trim();
+    if (!id || !/^\d+$/.test(id)) return;
+    setFeedbackSearching(true);
+    try {
+      const rows = await searchAdminFeedbackById(id);
+      setFeedbackSearchResults(Array.isArray(rows) && rows.length ? rows : []);
+    } catch (err) {
+      console.error('Error searching feedback:', err);
+      setFeedbackSearchResults([]);
+    } finally {
+      setFeedbackSearching(false);
+    }
+  };
+
   const filter = (rows, fields) =>
     rows.filter((r) =>
       fields.some((f) =>
@@ -260,7 +344,12 @@ export default function AdminPanel({ onBack }) {
   const clientRows = filter(dbClients, ['id', 'name', 'email', 'phone', 'location', 'role']);
   const workerRows = filter(dbWorkers, ['id', 'name', 'trade', 'phone', 'location']);
   const taskRows = filter(dbTasks, ['id', 'title', 'description', 'category', 'location', 'client_name', 'client_email', 'assigned_worker', 'status', 'progress']);
-  const feedbackRows = filter(feedback, ['id', 'customer', 'worker', 'task', 'comment']);
+  const feedbackRows = feedbackSearchResults !== null
+    ? feedbackSearchResults
+    : filter(dbFeedbacks, ['id', 'customer_name', 'customer_email', 'category', 'message', 'status']);
+  const complaintRows = complaintSearchResults !== null
+    ? complaintSearchResults
+    : filter(dbComplaints, ['complaint_id', 'client_name', 'worker_name', 'category', 'description', 'status']);
   const paymentRows = paymentSearchResults !== null
     ? paymentSearchResults
     : filter(payments, ['paymentid', 'customer_name', 'worker_name', 'task_title', 'status']);
@@ -355,6 +444,7 @@ export default function AdminPanel({ onBack }) {
                 {tab === 'workers' && `${workerRows.length} workers`}
                 {tab === 'tasks' && `${taskRows.length} tasks`}
                 {tab === 'feedback' && `${feedbackRows.length} reviews`}
+                {tab === 'complaints' && `${complaintRows.length} complaints`}
                 {tab === 'payments' && `${paymentRows.length} transactions`}
               </p>
             </div>
@@ -703,42 +793,233 @@ export default function AdminPanel({ onBack }) {
                 </table>
               )}
 
-              {tab === "feedback" && (
-                <table className="w-full min-w-[640px]">
-                  <thead className="border-b border-white/10 bg-white/5">
-                    <tr>
-                      <Th>Review</Th>
-                      <Th>Customer</Th>
-                      <Th>Worker</Th>
-                      <Th>Rating</Th>
-                      <Th>Date</Th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/5">
-                    {feedbackRows.map((f) => (
-                      <tr
-                        key={f.id}
-                        className="transition-colors hover:bg-white/5"
-                      >
-                        <Td>
-                          <p className="max-w-xs text-slate-300">{f.comment}</p>
-                          <p className="mt-1 text-xs text-slate-500">
-                            {f.task} · {f.id}
-                          </p>
-                        </Td>
-                        <Td className="text-slate-300">{f.customer}</Td>
-                        <Td className="text-slate-300">{f.worker}</Td>
-                        <Td>
-                          <StarRating rating={f.rating} />
-                        </Td>
-                        <Td className="text-slate-400">{f.date}</Td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
+               {tab === "feedback" && (
+                 <>
+                   <div className="mb-4 flex flex-wrap items-center gap-2">
+                     <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Top by latest:</span>
+                     {['none', '1st', '2nd', '3rd'].map((r) => (
+                       <label
+                         key={r}
+                         className={`flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${feedbackRank === r
+                           ? 'border-brand-400/50 bg-brand-500/15 text-brand-300'
+                           : 'border-white/10 bg-white/5 text-slate-400 hover:text-white'
+                           }`}
+                       >
+                         <input
+                           type="radio"
+                           name="feedback-rank"
+                           value={r}
+                           checked={feedbackRank === r}
+                           onChange={() => setFeedbackRank(r)}
+                           className="h-3.5 w-3.5 accent-brand-500"
+                         />
+                         {r === 'none' ? 'None' : r.toUpperCase()}
+                       </label>
+                     ))}
+                   </div>
 
-              {tab === "payments" && (
+                   <form onSubmit={handleFeedbackSearch} className="mb-4 flex flex-wrap items-center gap-2">
+                     <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Search by ID:</span>
+                     <div className="flex items-center gap-2">
+                       <input
+                         type="number"
+                         value={feedbackSearch}
+                         onChange={(e) => setFeedbackSearch(e.target.value)}
+                         placeholder="Feedback ID"
+                         className="w-32 rounded-xl border border-white/10 bg-ink-900 px-3 py-2 text-sm text-white placeholder:text-slate-500 outline-none transition-colors focus:border-brand-400"
+                         min="1"
+                       />
+                       <button
+                         type="submit"
+                         disabled={!feedbackSearch.trim() || feedbackSearching}
+                         className="inline-flex items-center gap-2 rounded-xl border border-brand-400/30 bg-brand-500/10 px-3 py-2 text-xs font-medium text-brand-300 transition-colors hover:bg-brand-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                       >
+                         <Search className="h-3.5 w-3.5" />
+                         Search
+                       </button>
+                       {feedbackSearchResults !== null && feedbackSearchResults.length === 0 && feedbackSearch && (
+                         <span className="text-xs text-amber-400">No feedback found with ID {feedbackSearch}</span>
+                       )}
+                       {feedbackSearchResults !== null && feedbackSearchResults.length > 0 && (
+                         <button
+                           type="button"
+                           onClick={() => {
+                             setFeedbackSearch('');
+                             setFeedbackSearchResults(null);
+                           }}
+                           className="inline-flex items-center gap-1 rounded-xl border border-white/10 bg-white/5 px-2 py-1.5 text-xs text-slate-400 hover:text-white"
+                         >
+                           <X className="h-3 w-3" />
+                           Clear
+                         </button>
+                       )}
+                     </div>
+                   </form>
+
+                   <table className="w-full min-w-[800px]">
+                     <thead className="border-b border-white/10 bg-white/5">
+                       <tr>
+                         <Th>Feedback</Th><Th>Customer</Th><Th>Category</Th><Th>Status</Th><Th>Date</Th>
+                       </tr>
+                     </thead>
+                     <tbody className="divide-y divide-white/5">
+                       {feedbackLoading ? (
+                         <tr>
+                           <td colSpan={5} className="px-4 py-10 text-center text-sm text-slate-400">
+                             Loading feedbacks…
+                           </td>
+                         </tr>
+                       ) : feedbackRows.length === 0 ? (
+                         <tr>
+                           <td colSpan={5} className="px-4 py-10 text-center text-sm text-slate-400">
+                             No feedbacks yet.
+                           </td>
+                         </tr>
+                       ) : (
+                         feedbackRows.map((f) => (
+                           <tr key={f.id} className="transition-colors hover:bg-white/5">
+                             <Td>
+                               <p className="max-w-xs text-slate-300">{f.message || '—'}</p>
+                               <p className="mt-1 text-xs text-slate-500">
+                                 #{f.id}
+                               </p>
+                             </Td>
+                             <Td>
+                               <p className="text-slate-300">{f.customer_name || '—'}</p>
+                               <p className="text-xs text-slate-500">{f.customer_email || ''}</p>
+                             </Td>
+                             <Td className="text-slate-300">{f.category || '—'}</Td>
+                             <Td>
+                               <Badge variant={formatStatus(f.status)}>{formatStatus(f.status)}</Badge>
+                             </Td>
+                             <Td className="text-slate-400">
+                               {f.created_at ? new Date(f.created_at).toLocaleDateString() : '—'}
+                             </Td>
+                           </tr>
+                         ))
+                       )}
+                     </tbody>
+                   </table>
+                 </>
+               )}
+
+               {tab === "complaints" && (
+                 <>
+                   <div className="mb-4 flex flex-wrap items-center gap-2">
+                     <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Top by latest:</span>
+                     {['none', '1st', '2nd', '3rd'].map((r) => (
+                       <label
+                         key={r}
+                         className={`flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${complaintRank === r
+                           ? 'border-brand-400/50 bg-brand-500/15 text-brand-300'
+                           : 'border-white/10 bg-white/5 text-slate-400 hover:text-white'
+                           }`}
+                       >
+                         <input
+                           type="radio"
+                           name="complaint-rank"
+                           value={r}
+                           checked={complaintRank === r}
+                           onChange={() => setComplaintRank(r)}
+                           className="h-3.5 w-3.5 accent-brand-500"
+                         />
+                         {r === 'none' ? 'None' : r.toUpperCase()}
+                       </label>
+                     ))}
+                   </div>
+
+                   <form onSubmit={handleComplaintSearch} className="mb-4 flex flex-wrap items-center gap-2">
+                     <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Search by ID:</span>
+                     <div className="flex items-center gap-2">
+                       <input
+                         type="number"
+                         value={complaintSearch}
+                         onChange={(e) => setComplaintSearch(e.target.value)}
+                         placeholder="Complaint ID"
+                         className="w-32 rounded-xl border border-white/10 bg-ink-900 px-3 py-2 text-sm text-white placeholder:text-slate-500 outline-none transition-colors focus:border-brand-400"
+                         min="1"
+                       />
+                       <button
+                         type="submit"
+                         disabled={!complaintSearch.trim() || complaintSearching}
+                         className="inline-flex items-center gap-2 rounded-xl border border-brand-400/30 bg-brand-500/10 px-3 py-2 text-xs font-medium text-brand-300 transition-colors hover:bg-brand-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                       >
+                         <Search className="h-3.5 w-3.5" />
+                         Search
+                       </button>
+                       {complaintSearchResults !== null && complaintSearchResults.length === 0 && complaintSearch && (
+                         <span className="text-xs text-amber-400">No complaint found with ID {complaintSearch}</span>
+                       )}
+                       {complaintSearchResults !== null && complaintSearchResults.length > 0 && (
+                         <button
+                           type="button"
+                           onClick={() => {
+                             setComplaintSearch('');
+                             setComplaintSearchResults(null);
+                           }}
+                           className="inline-flex items-center gap-1 rounded-xl border border-white/10 bg-white/5 px-2 py-1.5 text-xs text-slate-400 hover:text-white"
+                         >
+                           <X className="h-3 w-3" />
+                           Clear
+                         </button>
+                       )}
+                     </div>
+                   </form>
+
+                   <table className="w-full min-w-[800px]">
+                     <thead className="border-b border-white/10 bg-white/5">
+                       <tr>
+                         <Th>Complaint</Th><Th>Client</Th><Th>Worker</Th><Th>Category</Th><Th>Description</Th><Th>Status</Th><Th>Worker Role</Th><Th>Date</Th>
+                       </tr>
+                     </thead>
+                     <tbody className="divide-y divide-white/5">
+                       {complaintsLoading ? (
+                         <tr>
+                           <td colSpan={8} className="px-4 py-10 text-center text-sm text-slate-400">
+                             Loading complaints…
+                           </td>
+                         </tr>
+                       ) : complaintRows.length === 0 ? (
+                         <tr>
+                           <td colSpan={8} className="px-4 py-10 text-center text-sm text-slate-400">
+                             No complaints yet.
+                           </td>
+                         </tr>
+                       ) : (
+                         complaintRows.map((c) => (
+                           <tr key={c.complaint_id} className="transition-colors hover:bg-white/5">
+                             <Td>
+                               <p className="font-medium text-white">#{c.complaint_id}</p>
+                               <p className="text-xs text-slate-500">{c.category || 'General'}</p>
+                             </Td>
+                             <Td>
+                               <p className="text-slate-300">{c.client_name || '—'}</p>
+                               <p className="text-xs text-slate-500">{c.client_email || ''}</p>
+                             </Td>
+                             <Td>
+                               <p className="text-slate-300">{c.worker_name || '—'}</p>
+                               <p className="text-xs text-slate-500">{c.worker_email || ''}</p>
+                             </Td>
+                             <Td className="text-slate-300">{c.category || '—'}</Td>
+                             <Td>
+                               <p className="max-w-xs truncate text-slate-300" title={c.description}>
+                                 {c.description || '—'}
+                               </p>
+                             </Td>
+                             <Td><Badge variant={c.status}>{c.status}</Badge></Td>
+                             <Td className="text-slate-400">{c.worker_role || '—'}</Td>
+                             <Td className="text-slate-400">
+                               {c.created_at ? new Date(c.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+                             </Td>
+                           </tr>
+                         ))
+                       )}
+                     </tbody>
+                   </table>
+                 </>
+               )}
+
+               {tab === "payments" && (
                 <>
                   <div className="mb-4 flex flex-wrap items-center gap-2">
                     <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Top by amount:</span>
@@ -860,7 +1141,9 @@ export default function AdminPanel({ onBack }) {
                       ? taskRows.length
                       : tab === "feedback"
                         ? feedbackRows.length
-                        : paymentRows.length}{" "}
+                        : tab === "complaints"
+                          ? complaintRows.length
+                          : paymentRows.length}{" "}
               records
             </p>
             <button className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-medium text-slate-300 transition-colors hover:border-brand-400/40 hover:text-white">

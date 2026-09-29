@@ -164,6 +164,119 @@ class UserManagementController extends Controller
     }
 
     /**
+     * Create the vw_user_records view if needed.
+     * Uses a SQL VIEW (CREATE VIEW) — analogous to the IT_Employees example:
+     *   CREATE VIEW IT_Employees AS SELECT … FROM Employees WHERE Department = 'IT';
+     * Here we expose all user records with aggregate columns so the ReportWorker
+     * page can show a user's own record.
+     */
+    private function ensureUserRecordsView()
+    {
+        $definition = DB::selectOne(
+            "SELECT OBJECT_DEFINITION(OBJECT_ID('vw_user_records', 'V')) AS [def]"
+        )->def;
+
+        if ($definition && str_contains($definition, "total_tasks_done")) {
+            return;
+        }
+
+        DB::statement("DROP VIEW IF EXISTS [vw_user_records]");
+
+        DB::statement("
+            CREATE VIEW [vw_user_records] AS
+            SELECT
+                u.[id],
+                u.[name],
+                u.[email],
+                u.[phone],
+                u.[location],
+                ISNULL(u.[role], 'client') AS [role],
+                u.[expertise],
+                u.[created_at],
+                (SELECT ISNULL(SUM(p.[amount]), 0)
+                 FROM [payments] p
+                 WHERE p.[customer_id] = u.[id]
+                   AND (p.[status] = 'Complete' OR p.[status] = 'successfull' OR p.[status] = 'Paid')
+                ) AS [total_spent],
+                (SELECT ISNULL(SUM(p.[amount]), 0)
+                 FROM [payments] p
+                 WHERE p.[worker_id] = u.[id]
+                   AND (p.[status] = 'Complete' OR p.[status] = 'successfull' OR p.[status] = 'Paid')
+                ) AS [total_earned],
+                (SELECT COUNT(t.[id])
+                 FROM [tasks] t
+                 WHERE t.[user_id] = u.[id]
+                ) AS [total_tasks_given],
+                (SELECT COUNT(t.[id])
+                 FROM [tasks] t
+                 WHERE t.[assigned_worker_id] = u.[id]
+                ) AS [total_tasks_done]
+            FROM [users] u
+        ");
+    }
+
+    /**
+     * Return the current user's own record via the vw_user_records VIEW.
+     * Accessible to any authenticated user.
+     */
+    public function userRecord(Request $request): JsonResponse
+    {
+        if (!$request->user()) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        $this->ensureUserRecordsView();
+
+        $id = $request->user()->id;
+
+        $rows = DB::select("SELECT * FROM [vw_user_records] WHERE [id] = $id");
+
+        if (empty($rows)) {
+            return response()->json(['message' => 'No record found.'], 404);
+        }
+
+        $row = $rows[0];
+
+        $decoded = !empty($row->expertise) ? json_decode($row->expertise, true) : null;
+        if (is_array($decoded) && !empty($decoded)) {
+            $row->trade = implode(', ', $decoded);
+        } elseif (is_string($decoded)) {
+            $row->trade = $decoded;
+        } else {
+            $row->trade = $row->role === 'worker' ? ($row->expertise ?? 'Worker') : '—';
+        }
+
+        return response()->json($row);
+    }
+
+    /**
+     * Return all worker user records via the vw_user_records VIEW (admin only).
+     */
+    public function userRecords(Request $request): JsonResponse
+    {
+        if (($request->user()->role ?? null) !== 'admin') {
+            return response()->json(['message' => 'Forbidden.'], 403);
+        }
+
+        $this->ensureUserRecordsView();
+
+        $rows = DB::select("SELECT * FROM [vw_user_records] ORDER BY [created_at] DESC");
+
+        foreach ($rows as $row) {
+            $decoded = !empty($row->expertise) ? json_decode($row->expertise, true) : null;
+            if (is_array($decoded) && !empty($decoded)) {
+                $row->trade = implode(', ', $decoded);
+            } elseif (is_string($decoded)) {
+                $row->trade = $decoded;
+            } else {
+                $row->trade = 'Worker';
+            }
+        }
+
+        return response()->json($rows);
+    }
+
+    /**
      * Aggregate queries for Total Users, Clients, Workers, Tasks Given, and Tasks Done
      */
     public function summary(Request $request): JsonResponse

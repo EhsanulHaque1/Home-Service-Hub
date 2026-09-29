@@ -204,6 +204,14 @@ export function fetchAdminWorkers(rank = 'none') {
   return apiGet(`/admin/users/workers?rank=${rank}`);
 }
 
+export function fetchUserRecords() {
+  return apiGet('/admin/users/records');
+}
+
+export function fetchCurrentUserRecord() {
+  return apiGet('/user/record');
+}
+
 export function fetchAdminTasks() {
   return apiGet('/admin/tasks');
 }

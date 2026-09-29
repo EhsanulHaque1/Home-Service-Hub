@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { User, Mail, Wrench, ShieldAlert, ArrowRight, Loader2 } from 'lucide-react';
 import AuthLayout from '@/components/AuthLayout';
-import { apiPost } from '@/lib/api';
+import { apiPost, fetchCurrentUserRecord } from '@/lib/api';
+import { useAuth } from '@/context/AuthContext';
 
 const categories = [
   'Late arrival',
@@ -24,6 +25,26 @@ export default function ReportWorker() {
   });
   const [errors, setErrors] = useState({});
   const [status, setStatus] = useState('idle');
+  const { user } = useAuth();
+  const [userRecord, setUserRecord] = useState(null);
+  const [userRecordLoading, setUserRecordLoading] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      setUserRecordLoading(true);
+      fetchCurrentUserRecord()
+        .then((data) => {
+          setUserRecord(data);
+          setForm((f) => ({
+            ...f,
+            client_name: data.name ?? f.client_name,
+            client_email: data.email ?? f.client_email,
+          }));
+        })
+        .catch(() => setUserRecord(null))
+        .finally(() => setUserRecordLoading(false));
+    }
+  }, [user]);
 
   const update = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
 
@@ -227,6 +248,73 @@ export default function ReportWorker() {
           )}
         </button>
       </form>
-    </AuthLayout>
+
+      {user && (
+        <div className="mt-10 border-t border-white/10 pt-8">
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-400">
+            Your records (vw_user_records)
+          </h3>
+          {userRecordLoading ? (
+            <div className="mt-4 flex items-center gap-2 text-slate-400">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading your record…
+            </div>
+          ) : userRecord ? (
+            <div className="mt-4 overflow-x-auto">
+              <table className="w-full border-collapse text-left text-sm">
+                <tbody>
+                  <tr className="border-b border-white/5">
+                    <td className="py-2 pr-4 text-xs font-semibold uppercase text-slate-500">ID</td>
+                    <td className="py-2 text-slate-300">{userRecord.id}</td>
+                  </tr>
+                  <tr className="border-b border-white/5">
+                    <td className="py-2 pr-4 text-xs font-semibold uppercase text-slate-500">Name</td>
+                    <td className="py-2 text-white">{userRecord.name}</td>
+                  </tr>
+                  <tr className="border-b border-white/5">
+                    <td className="py-2 pr-4 text-xs font-semibold uppercase text-slate-500">Email</td>
+                    <td className="py-2 text-slate-400">{userRecord.email}</td>
+                  </tr>
+                  <tr className="border-b border-white/5">
+                    <td className="py-2 pr-4 text-xs font-semibold uppercase text-slate-500">Phone</td>
+                    <td className="py-2 text-slate-400">{userRecord.phone || '—'}</td>
+                  </tr>
+                  <tr className="border-b border-white/5">
+                    <td className="py-2 pr-4 text-xs font-semibold uppercase text-slate-500">Location</td>
+                    <td className="py-2 text-slate-400">{userRecord.location || '—'}</td>
+                  </tr>
+                  <tr className="border-b border-white/5">
+                    <td className="py-2 pr-4 text-xs font-semibold uppercase text-slate-500">Role</td>
+                    <td className="py-2 text-slate-300">{userRecord.role}</td>
+                  </tr>
+                  <tr className="border-b border-white/5">
+                    <td className="py-2 pr-4 text-xs font-semibold uppercase text-slate-500">Trade</td>
+                    <td className="py-2 text-slate-400">{userRecord.trade || '—'}</td>
+                  </tr>
+                  <tr className="border-b border-white/5">
+                    <td className="py-2 pr-4 text-xs font-semibold uppercase text-slate-500">Total Spent</td>
+                    <td className="py-2 text-slate-300">{userRecord.total_spent ?? 0}</td>
+                  </tr>
+                  <tr className="border-b border-white/5">
+                    <td className="py-2 pr-4 text-xs font-semibold uppercase text-slate-500">Total Earned</td>
+                    <td className="py-2 text-slate-300">{userRecord.total_earned ?? 0}</td>
+                  </tr>
+                  <tr className="border-b border-white/5">
+                    <td className="py-2 pr-4 text-xs font-semibold uppercase text-slate-500">Tasks Given</td>
+                    <td className="py-2 text-slate-300">{userRecord.total_tasks_given ?? 0}</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2 pr-4 text-xs font-semibold uppercase text-slate-500">Tasks Done</td>
+                    <td className="py-2 text-slate-300">{userRecord.total_tasks_done ?? 0}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="mt-4 text-sm text-slate-500">No record found.</p>
+          )}
+        </div>
+      )}
+      </AuthLayout>
   );
 }
